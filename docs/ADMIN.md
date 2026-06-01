@@ -10,7 +10,7 @@
 |---|---|---|
 | **聊天 UI**（普通用户 + 你自己）| https://chat.example.com/ | 跟模型对话 / 用 agent |
 | **Admin Panel**（GUI 后台）| https://admin.example.com/ | 用户管理 / 配置 / 角色 / 权限 / 组 |
-| **vc-admin CLI**（SSH 进 Vega 跑）| `vc-admin --help` | 改密 / 批量操作 / 直连 DB |
+| **vc-admin CLI**（SSH 进服务器跑）| `vc-admin --help` | 改密 / 批量操作 / 直连 DB |
 
 ## 0.1 Admin Panel 功能（GUI）
 

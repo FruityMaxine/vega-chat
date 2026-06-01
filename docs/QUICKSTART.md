@@ -1,82 +1,73 @@
-# Vega Chat 上手指南（已更正）
+# Vega Chat 上手指南
 
-> **重要纠错**：上一版说 "Settings → Account → Change Password" 是错的。
-> LibreChat 0.8.6-rc1 **没有自助改密 GUI**。所有管理动作走 `vc-admin` 命令行。
-> 详见 `ADMIN.md`。
+> 本指南面向**已完成部署**的实例（见 [DEPLOY.md](./DEPLOY.md)）。
+> 注意：LibreChat 0.8.6 **没有自助改密 / web admin GUI**，所有管理动作走 `vc-admin` 命令行（见 [ADMIN.md](./ADMIN.md)）。
 
-## 1. 登录
+## 1. 创建你的第一个账号
 
-浏览器（手机 / PC）打开：
+部署后浏览器打开你的站点（部署时配置的 `DOMAIN_CLIENT`，例如 `https://chat.example.com/`）。
 
-**https://chat.example.com/**
+`.env.example` 默认 `ALLOW_REGISTRATION=true`，直接在登录页**注册**第一个账号即可。生产环境拿到第一个 admin 后建议关掉开放注册。
 
-凭证（**临时**，建议立刻用 `vc-admin passwd` 改）：
+## 2. 把自己提为管理员
 
-- 邮箱：`admin@example.com`
-- 密码：`REDACTED`
-
-## 2. 改密码（不是 GUI 改，走命令行）
-
-SSH 进 Vega，执行：
+在**服务器上**（部署 docker-compose 的机器）执行：
 
 ```bash
-vc-admin passwd admin@example.com 你想要的新密码
+vc-admin role you@example.com ADMIN     # 把刚注册的账号升为 ADMIN
+vc-admin show you@example.com           # 确认 role: 'ADMIN'
 ```
 
-## 3. 你是 admin
+改密码也走命令行（无 GUI）：
 
 ```bash
-vc-admin show admin@example.com   # 看 role: 'ADMIN'
+vc-admin passwd you@example.com 新密码
 ```
 
-但 LibreChat 0.8.6-rc1 **没有 web admin 后台**。所有管理动作命令行：见 `ADMIN.md`。
-
-## 4. 配 DeepSeek
+## 3. 配置模型 provider key
 
 ```bash
 vc-admin set-key deepseek sk-你的-deepseek-key
+# 或在 docker/.env 里填 OPENAI_API_KEY / ANTHROPIC_API_KEY 后重启
 ```
 
-然后浏览器顶部模型选单切到 "DeepSeek"。
+然后浏览器顶部模型选单切到对应模型。
 
-## 5. Codex Root Agent
+## 4. 接入 Codex
 
-登录后 sidebar → 智能体构建器 → 新建：
-- 名字：`Codex Root`
-- 模型：随便选一个（DeepSeek / GPT-4o）
-- 工具：勾 `codex` 和 `codex-reply`
-- 指令：参考 ADMIN.md 7.2
-- **共享：Private（只你能看到）**
-- Save
+确保已跑过 `./scripts/codex-onboard.sh`（幂等接入，见 DEPLOY.md）。之后在模型选单里会出现 **Codex** endpoint，直接选它对话即可——
+codex 会在服务器 `CODEX_WORK_DIR` 下真实执行文件 / 命令 / 构建，输出以本项目定制的折叠 / token chip UI 呈现。
 
-测试：发一条 "看下当前服务器内存"，agent 会调 codex MCP，codex 真去 root 执行。
+> 也可在 sidebar → 智能体构建器里新建一个绑定 `codex` 工具的私有 agent，给它固定的系统指令。详见 [ADMIN.md](./ADMIN.md)。
 
-## 6. 加朋友 / 控制权限
+## 5. 加成员 / 控制权限
 
 ```bash
-vc-admin add friend@example.com 'Friend' friend          # 普通 USER
-vc-admin add buddy@example.com  'Buddy'  buddy ADMIN     # 给管理员权限
-vc-admin role friend@example.com ADMIN                   # 升降权限
-vc-admin delete friend@example.com                       # 删
-vc-admin list                                      # 看所有
+vc-admin add  friend@example.com 'Friend' friend          # 加普通 USER
+vc-admin add  buddy@example.com  'Buddy'  buddy ADMIN      # 加管理员
+vc-admin role friend@example.com ADMIN                     # 升降权限
+vc-admin delete friend@example.com                         # 删(二次确认)
+vc-admin list                                              # 列出所有用户
 ```
 
-## 7. 已知问题
-
-- **未汉化文本** 5 处（设置 → 通用 / 对话）：上游 LibreChat i18n 没补，等下次升级
-- **改密只能命令行**：没有 GUI（LibreChat 设计如此）
-- **没有 admin web 后台**：所有用户管理走 `vc-admin`
-
-## 8. 完整文档
-
-- `README.md` — 项目说明
-- `ADMIN.md` — **管理手册（完整版）**
-- `docs/progress/部署记录_2026-05-23.md` — 部署日志
-
-## 9. 出问题排查
+## 6. 出问题排查
 
 ```bash
 vc-admin doctor          # 全链路自检
 vc-admin logs            # 看 api 日志
 vc-admin restart         # 重启 api
+
+curl http://127.0.0.1:3084/healthz   # vega-codex-proxy 健康
 ```
+
+## 7. 已知限制
+
+- 改密 / 用户管理只能命令行（LibreChat 0.8.6 无对应 GUI）
+- 部分设置项文本未汉化（上游 LibreChat i18n 未覆盖）
+
+## 8. 完整文档
+
+- [README.md](../README.md) — 项目说明与差异化
+- [ADMIN.md](./ADMIN.md) — 管理手册（完整版）
+- [DEPLOY.md](./DEPLOY.md) — 部署与故障排查
+- [ARCHITECTURE.md](./ARCHITECTURE.md) — 架构与数据流
