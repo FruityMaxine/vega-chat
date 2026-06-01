@@ -10,6 +10,20 @@ cp docker/.env.example docker/.env   # 填密钥
 cd vega-codex-proxy && ../.venv-admin/bin/python -m pytest tests/ -q   # 跑测试
 ```
 
+## 持续集成 (CI)
+
+仓库自带一份 ready-to-use 的 GitHub Actions 配置 `.github/ci.example.yml`
+（pytest 跨 Python 3.10–3.12 + `py_compile` 语法门）。启用只需一步：
+
+```bash
+mkdir -p .github/workflows
+git mv .github/ci.example.yml .github/workflows/ci.yml
+git commit -m "ci: enable GitHub Actions" && git push
+```
+
+> 以 `.example` 后缀分发，是因为放置 `.github/workflows/*` 需要带 `workflow`
+> scope 的 token；用你自己的账号在网页或本地推一次即可激活。
+
 ## 约定
 
 - 后端 Python：FastAPI，改动配 pytest 单测。
