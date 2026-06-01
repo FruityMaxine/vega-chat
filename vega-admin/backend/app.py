@@ -10,6 +10,7 @@ import json as _json
 import os
 import secrets
 import urllib.error
+import urllib.parse
 import urllib.request
 from datetime import datetime
 from pathlib import Path
@@ -540,6 +541,34 @@ async def codex_rename(request: Request, refreshToken: Optional[str] = Cookie(No
     user = get_current_user(refreshToken)
     payload = await _safe_json(request)
     status, body = await _forward("POST", "/codex/session/rename", user, payload)
+    return JSONResponse(body, status_code=status)
+
+
+# ── 组onboard TickA: codex 智能接入 (探测 / 登录态 / 配置) admin 守门转发 ──
+@app.get("/api/codex/onboard/detect")
+async def codex_onboard_detect(
+    refreshToken: Optional[str] = Cookie(None), path: Optional[str] = None
+):
+    user = get_current_user(refreshToken)
+    p = "/codex/onboard/detect"
+    if path:
+        p += "?path=" + urllib.parse.quote(path, safe="")
+    status, body = await _forward("GET", p, user)
+    return JSONResponse(body, status_code=status)
+
+
+@app.get("/api/codex/onboard/status")
+async def codex_onboard_status(refreshToken: Optional[str] = Cookie(None)):
+    user = get_current_user(refreshToken)
+    status, body = await _forward("GET", "/codex/onboard/status", user)
+    return JSONResponse(body, status_code=status)
+
+
+@app.post("/api/codex/onboard/config")
+async def codex_onboard_config(request: Request, refreshToken: Optional[str] = Cookie(None)):
+    user = get_current_user(refreshToken)
+    payload = await _safe_json(request)
+    status, body = await _forward("POST", "/codex/onboard/config", user, payload)
     return JSONResponse(body, status_code=status)
 
 

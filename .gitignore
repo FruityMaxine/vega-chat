@@ -23,3 +23,6 @@ vega-codex-proxy/sessions.db-shm
 # node render harness 依赖 (TickB, 运行时 npm install)
 vega-codex-proxy/tests/render-harness/node_modules/
 vega-codex-proxy/tests/render-harness/package-lock.json
+
+# codex 接入向导 runtime 配置
+codex_onboard_config.json

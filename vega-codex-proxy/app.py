@@ -32,6 +32,8 @@ from codex_events import EventFormatter
 from session_store import get_store
 # 组2 TickA: codex schema 漂移告警 (防 CLI 升级字段改名静默崩)
 import codex_schema
+# 组onboard TickA: codex 智能接入探测 / 登录态 / 配置落盘
+import codex_onboard
 
 # turn 空闲超时: 超过此秒数无任何事件 = codex 卡死, 中止并提示 (治"卡死永久挂起")
 TURN_IDLE_TIMEOUT = float(os.environ.get("CODEX_TURN_IDLE_TIMEOUT", "180"))
@@ -222,6 +224,36 @@ async def appserver_ping():
         return JSONResponse({"ok": False, "error": str(exc)}, status_code=503)
     except Exception as exc:  # noqa: BLE001 - 诊断端点兜底
         return JSONResponse({"ok": False, "error": repr(exc)}, status_code=503)
+
+
+# ────── 组onboard TickA: codex 智能接入 (探测 / 登录态 / 配置落盘) ──────
+# 仅 admin: 新服务器部署后零命令行识别 codex 安装路径与登录状态。
+
+
+class OnboardConfigReq(BaseModel):
+    codex_bin: str
+
+
+@app.get("/codex/onboard/detect")
+async def codex_onboard_detect(request: Request, path: Optional[str] = None):
+    """探测 codex 二进制 (多候选路径 + --version 校验)。path 传自定义路径优先试。"""
+    await require_admin(request)
+    return {"ok": True, **codex_onboard.detect_codex_bin(path)}
+
+
+@app.get("/codex/onboard/status")
+async def codex_onboard_status(request: Request):
+    """检测 codex 登录态 (codex login status + auth.json)。"""
+    await require_admin(request)
+    return {"ok": True, **codex_onboard.check_login_status()}
+
+
+@app.post("/codex/onboard/config")
+async def codex_onboard_config(request: Request, body: OnboardConfigReq):
+    """落盘自定义 codex 路径 (校验真能跑 --version 才写)。"""
+    await require_admin(request)
+    result = codex_onboard.persist_config(body.codex_bin)
+    return JSONResponse(result, status_code=200 if result.get("ok") else 400)
 
 
 # ────── codex 状态仪表盘 (静态页, 同源轮询 /healthz) ──────
