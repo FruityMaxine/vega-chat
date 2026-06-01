@@ -51,6 +51,16 @@ JWT_SECRET = os.environ.get(
     "JWT_SECRET",
     "",
 )
+# 安全护栏: 空 JWT_SECRET 会让 admin token 校验可被伪造。启动时大声告警, 防静默漏配。
+# 生成: openssl rand -hex 32
+if not JWT_SECRET:
+    import sys
+
+    print(
+        "[vega-admin] 警告: JWT_SECRET 未设置(空) —— admin token 校验不可信, "
+        "生产环境务必设置 (openssl rand -hex 32)",
+        file=sys.stderr,
+    )
 
 
 def _decode_token(token: str, secret: str) -> Optional[dict]:

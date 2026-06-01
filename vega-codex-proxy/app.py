@@ -51,6 +51,13 @@ JWT_REFRESH_SECRET = os.environ.get(
     "JWT_REFRESH_SECRET",
     "",
 )
+# 安全护栏: 空 JWT_SECRET 会让 token 校验形同虚设(可伪造)。不硬崩(非严格模式可信任
+# docker 子网转发), 但必须在启动日志大声告警, 防运维静默漏配。生成: openssl rand -hex 32
+if not JWT_SECRET:
+    logger.warning(
+        "JWT_SECRET 未设置(空) —— JWT 校验不可信, 仅依赖子网信任/STRICT_ADMIN_ONLY。"
+        "生产环境务必设置: openssl rand -hex 32"
+    )
 # 允许的角色 - 默认仅 ADMIN
 ALLOWED_ROLES = set(os.environ.get("ALLOWED_ROLES", "ADMIN").split(","))
 # 严格模式: 默认 false (信任 LibreChat 转发)

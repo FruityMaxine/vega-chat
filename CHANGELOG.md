@@ -4,6 +4,13 @@
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号采用扩展 SemVer 4 段制 `MAJOR.MINOR.PATCH.BUILD`。
 
+## [1.20.0.2] - 2026-06-01
+
+### Security
+- `vega-codex-proxy` / `vega-admin`：空 `JWT_SECRET` 启动告警护栏 —— 防止脱敏后的空默认值被静默用作可伪造 token 的密钥，提示运维用 `openssl rand -hex 32` 配置。
+- 文档外部化：`QUICKSTART.md` 去除部署专属 bootstrap 凭据、改为通用注册→提权流程；`DEPLOY.md` 标注可选 admin-panel profile。
+- 加 `.gitattributes`（统一 LF 行尾）。
+
 ## [1.20.0.1] - 2026-06-01
 
 ### Added
@@ -38,5 +45,6 @@ LibreChat 聊天界面，做成一体化、可一键部署的差异产品。
 - **PolyForm Noncommercial 1.0.0** —— 允许个人 / 研究 / 非营利使用，**禁止商用**。
 - 第三方组件归属见 `THIRD_PARTY.md`（LibreChat 为 MIT）。
 
+[1.20.0.2]: https://github.com/FruityMaxine/vega-chat/releases/tag/v1.20.0.2
 [1.20.0.1]: https://github.com/FruityMaxine/vega-chat/releases/tag/v1.20.0.1
 [1.20.0.0]: https://github.com/FruityMaxine/vega-chat/releases/tag/v1.20.0.0
