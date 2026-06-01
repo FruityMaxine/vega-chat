@@ -1,0 +1,9 @@
+# 统一文本行尾为 LF，避免跨平台 CRLF 噪声
+* text=auto eol=lf
+
+# 脚本强制 LF（CRLF 会让 shebang 失效）
+*.sh text eol=lf
+
+# 二进制资源
+*.png binary
+docs/screenshots/* binary
