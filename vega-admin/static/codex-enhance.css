@@ -281,4 +281,109 @@ code.vega-tok-chip::after {
 }
 .vega-toast-out {
   opacity: 0;
+  transform: translateX(-50%) translateY(8px);
+}
+
+/* ════════════ 动效层 (motion) ════════════
+ * 全部入场/循环动画包进 prefers-reduced-motion: no-preference,
+ * 让降级用户得到瞬时无动画体验 (a11y)。缓动统一 cubic-bezier(.16,1,.3,1)
+ * (ease-out-expo, 快进慢收, 有"生命感"不拖沓)。
+ */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes vega-chip-in {
+    from { opacity: 0; transform: translateY(4px) scale(0.9); }
+    to   { opacity: 1; transform: none; }
+  }
+  @keyframes vega-gear-in {
+    from { opacity: 0; transform: scale(0.5) rotate(-35deg); }
+    to   { opacity: 1; transform: none; }
+  }
+  @keyframes vega-panel-in {
+    from { opacity: 0; transform: translateY(-8px) scale(0.96); }
+    to   { opacity: 1; transform: none; }
+  }
+  @keyframes vega-row-in {
+    from { opacity: 0; transform: translateX(7px); }
+    to   { opacity: 1; transform: none; }
+  }
+  @keyframes vega-toast-in {
+    from { opacity: 0; transform: translateX(-50%) translateY(12px); }
+    to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+  }
+
+  /* token 用量 chip: 淡入 + 轻微上浮放大 */
+  code.vega-tok-chip {
+    animation: vega-chip-in 0.34s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  /* 齿轮: 入场弹入 + hover 转动 */
+  #vega-codex-gear {
+    animation: vega-gear-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  #vega-codex-gear svg {
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  #vega-codex-gear:hover svg {
+    transform: rotate(60deg);
+  }
+
+  /* hub 面板: 自齿轮方向滑入缩放 + 内容渐次浮入 */
+  .vega-panel.vega-anim-open {
+    animation: vega-panel-in 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .vega-panel.vega-anim-open > * {
+    animation: vega-row-in 0.34s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .vega-panel.vega-anim-open > *:nth-child(2) { animation-delay: 0.03s; }
+  .vega-panel.vega-anim-open > *:nth-child(3) { animation-delay: 0.06s; }
+  .vega-panel.vega-anim-open > *:nth-child(4) { animation-delay: 0.09s; }
+  .vega-panel.vega-anim-open > *:nth-child(n+5) { animation-delay: 0.11s; }
+
+  /* toast: 入场上滑淡入 (出场用 .vega-toast-out 下滑淡出) */
+  .vega-toast {
+    animation: vega-toast-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+}
+
+/* ── 微交互 (轻量 transition, reduced-motion 下保留也无妨) ── */
+#vega-codex-gear {
+  transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.2s ease;
+  transform-origin: center;
+}
+#vega-codex-gear:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 5px 16px rgba(0, 0, 0, 0.34);
+}
+.vega-panel {
+  transform-origin: top right;
+}
+.vega-panel-btn {
+  transition: background 0.14s ease, transform 0.12s ease, border-color 0.14s ease;
+}
+.vega-panel-btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(22, 163, 74, 0.4);
+}
+.vega-panel-btn:active {
+  transform: translateY(0) scale(0.985);
+}
+.vega-panel-link {
+  transition: color 0.14s ease, transform 0.14s ease;
+}
+.vega-panel-link:hover {
+  transform: translateX(2px);
+}
+.vega-cmd-header {
+  transition: background 0.16s ease;
+  border-radius: 6px;
+}
+.vega-cmd-header:hover {
+  background: rgba(22, 163, 74, 0.06);
+}
+.vega-fold-toggle svg {
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.vega-cmd-body {
+  transition: max-height 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease,
+    padding 0.22s ease;
 }

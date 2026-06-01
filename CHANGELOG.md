@@ -4,6 +4,21 @@
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号采用扩展 SemVer 4 段制 `MAJOR.MINOR.PATCH.BUILD`。
 
+## [1.21.0.0] - 2026-06-01
+
+### Added — 动效 / 微交互层 (motion)
+- 全新动效层（`codex-enhance.css` + `vega-theme.css`），统一缓动 `cubic-bezier(.16,1,.3,1)`：
+  - **token 用量 chip** 淡入上浮入场；
+  - **齿轮** 弹入 + hover 转动 60°；
+  - **hub 面板** 自齿轮方向滑入缩放 + 内容渐次浮入（staggered）；
+  - **品牌角标** 入场 + 极轻"呼吸"光晕；
+  - **会话管理 modal** 背景淡入 + 卡片缩放浮入；
+  - **toast** 上滑淡入 / 下滑淡出；
+  - 按钮 / 链接 / 折叠头 hover 微交互（lift / translate / 背景反馈）。
+- `inject.js`：面板 / modal 开启时强制 reflow 重触发入场动画（`vega-anim-open` 类）。
+- **可访问性**：全部入场 / 循环动画包进 `@media (prefers-reduced-motion: no-preference)`，降级用户得瞬时无动画体验。
+- Playwright 实测：6/6 组件 `animationName` 断言通过 + 运动中/稳态双帧视觉验证。
+
 ## [1.20.0.2] - 2026-06-01
 
 ### Security

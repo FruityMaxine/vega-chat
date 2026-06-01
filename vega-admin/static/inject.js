@@ -338,6 +338,10 @@
       m.querySelector("#vsm-x").addEventListener("click", function () { m.style.display = "none"; });
     }
     m.style.display = "flex";
+    // 重触发入场动画 (display 切换不会自动重跑 animation)
+    m.classList.remove("vega-anim-open");
+    void m.offsetWidth;
+    m.classList.add("vega-anim-open");
     loadSessions();
   }
 
@@ -415,7 +419,13 @@
           e.stopPropagation();
           var open = panel.style.display === "none";
           panel.style.display = open ? "block" : "none";
-          if (open) refreshPanel();
+          if (open) {
+            // 重触发开启动画 (强制 reflow 让 animation 每次都跑)
+            panel.classList.remove("vega-anim-open");
+            void panel.offsetWidth;
+            panel.classList.add("vega-anim-open");
+            refreshPanel();
+          }
         });
         document.addEventListener("click", function (e) {
           if (
