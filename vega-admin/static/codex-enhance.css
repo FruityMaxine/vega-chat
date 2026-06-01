@@ -313,12 +313,12 @@ code.vega-tok-chip::after {
 
   /* token 用量 chip: 淡入 + 轻微上浮放大 */
   code.vega-tok-chip {
-    animation: vega-chip-in 0.34s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation: vega-chip-in 0.34s cubic-bezier(0.16, 1, 0.3, 1) backwards;
   }
 
   /* 齿轮: 入场弹入 + hover 转动 */
   #vega-codex-gear {
-    animation: vega-gear-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation: vega-gear-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) backwards;
   }
   #vega-codex-gear svg {
     transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
@@ -329,10 +329,10 @@ code.vega-tok-chip::after {
 
   /* hub 面板: 自齿轮方向滑入缩放 + 内容渐次浮入 */
   .vega-panel.vega-anim-open {
-    animation: vega-panel-in 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation: vega-panel-in 0.24s cubic-bezier(0.16, 1, 0.3, 1) backwards;
   }
   .vega-panel.vega-anim-open > * {
-    animation: vega-row-in 0.34s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation: vega-row-in 0.34s cubic-bezier(0.16, 1, 0.3, 1) backwards;
   }
   .vega-panel.vega-anim-open > *:nth-child(2) { animation-delay: 0.03s; }
   .vega-panel.vega-anim-open > *:nth-child(3) { animation-delay: 0.06s; }
@@ -386,4 +386,37 @@ code.vega-tok-chip::after {
 .vega-cmd-body {
   transition: max-height 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease,
     padding 0.22s ease;
+}
+
+/* token chip hover: 轻微上浮放大 + 提亮 (暗示可悬停看 tooltip 全量) */
+code.vega-tok-chip {
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), background 0.15s ease,
+    border-color 0.15s ease;
+}
+code.vega-tok-chip:hover {
+  transform: translateY(-1px) scale(1.03);
+  background: rgba(22, 163, 74, 0.17) !important;
+  border-color: rgba(22, 163, 74, 0.45) !important;
+}
+
+/* 加载态 shimmer 骨架 (用于 "加载中…" 文本, 数据到位后 JS 重置 className 自动停)
+ * 整段包进 no-preference: 降级用户得普通文本 (正常颜色, 不透明) */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes vega-shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+  .vega-shimmer {
+    background: linear-gradient(
+      90deg,
+      currentColor 30%,
+      rgba(180, 220, 190, 0.95) 50%,
+      currentColor 70%
+    );
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: vega-shimmer 1.5s linear infinite;
+  }
 }

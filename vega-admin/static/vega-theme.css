@@ -126,13 +126,13 @@
   }
 
   #vega-brand-badge {
-    animation: vega-badge-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both,
+    animation: vega-badge-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) backwards,
       vega-badge-glow 4.5s ease-in-out 1.2s infinite;
   }
   /* modal: 背景淡入 + 卡片缩放浮入 (JS 加 .vega-anim-open) */
-  .vsm-modal.vega-anim-open { animation: vega-backdrop-in 0.18s ease both; }
+  .vsm-modal.vega-anim-open { animation: vega-backdrop-in 0.18s ease backwards; }
   .vsm-modal.vega-anim-open .vsm-card {
-    animation: vega-modal-card-in 0.26s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation: vega-modal-card-in 0.26s cubic-bezier(0.16, 1, 0.3, 1) backwards;
   }
 }
 

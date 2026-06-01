@@ -332,7 +332,7 @@
       m.innerHTML =
         '<div class="vsm-card"><div class="vsm-head">codex 会话管理' +
         '<button class="vsm-close" id="vsm-x" aria-label="关闭"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>' +
-        '<div class="vsm-list" id="vsm-list"><div class="vsm-empty">加载中…</div></div></div>';
+        '<div class="vsm-list" id="vsm-list"><div class="vsm-empty vega-shimmer">加载中…</div></div></div>';
       document.body.appendChild(m);
       m.addEventListener("click", function (e) { if (e.target === m) m.style.display = "none"; });
       m.querySelector("#vsm-x").addEventListener("click", function () { m.style.display = "none"; });
@@ -355,7 +355,7 @@
       '<svg class="vega-hub-logo" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l8.66 5v10L12 22l-8.66-5V7L12 2zm0 2.31L5.34 8.15v7.7L12 19.69l6.66-3.84v-7.7L12 4.31z"/></svg>' +
       "Vega Chat 控制台</div>" +
       '<div class="vega-hub-sec">Codex 会话</div>' +
-      '<div class="vega-panel-row"><span class="vega-panel-k">引擎</span><span class="vega-panel-v" id="vp-status">加载中…</span></div>' +
+      '<div class="vega-panel-row"><span class="vega-panel-k">引擎</span><span class="vega-panel-v vega-shimmer" id="vp-status">加载中…</span></div>' +
       '<div class="vega-panel-row"><span class="vega-panel-k">当前会话</span><span class="vega-panel-v" id="vp-thread">—</span></div>' +
       '<button type="button" class="vega-panel-btn" id="vp-interrupt">停止当前回答</button>' +
       '<button type="button" class="vega-panel-btn" id="vp-sessions">管理 codex 会话</button>' +

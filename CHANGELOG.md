@@ -4,6 +4,15 @@
 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号采用扩展 SemVer 4 段制 `MAJOR.MINOR.PATCH.BUILD`。
 
+## [1.21.1.0] - 2026-06-01
+
+### Added
+- **加载态 shimmer 骨架**：hub 面板引擎状态 / 会话列表的"加载中…"用渐变扫光反馈（数据到位后 className 重置自动停）。
+- **token chip hover 微交互**：悬停轻微上浮放大 + 提亮，暗示可看 tooltip 全量。
+
+### Fixed
+- 入场动画 `animation-fill-mode` 由 `both` 改 `backwards`：`both` 会持久化 `to` 状态、压制 chip / 齿轮 / 角标 / 面板按钮的 `:hover` transform，导致悬停微交互失效。改后入场不闪烁且 hover 正常。Playwright 复测 chip hover `scale(1.03)` 生效。
+
 ## [1.21.0.0] - 2026-06-01
 
 ### Added — 动效 / 微交互层 (motion)
