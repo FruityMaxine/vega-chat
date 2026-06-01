@@ -6,3 +6,4 @@ pyjwt
 bcrypt
 # 仅前端 E2E 实测需要 (可选)
 # playwright
+segno  # QR 码生成(codex 接入向导登录二维码)

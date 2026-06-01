@@ -155,3 +155,163 @@
 .vsm-act:active {
   transform: translateY(0) scale(0.97);
 }
+
+/* ════════════ 组onboard TickC: codex 接入向导 wizard ════════════ */
+.vow-card { width: 460px; max-width: 94vw; }
+.vow-modal .vow-body { padding: 16px; overflow-y: auto; }
+
+/* 步骤指示器 */
+.vow-steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 14px 16px 4px;
+  flex-wrap: wrap;
+}
+.vow-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--vega-muted);
+  font-weight: 600;
+}
+.vow-step-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1.5px solid var(--vega-card-line);
+  font-size: 11px;
+}
+.vow-step-active { color: var(--vega-brand); }
+.vow-step-active .vow-step-dot {
+  border-color: var(--vega-brand);
+  background: var(--vega-brand-soft);
+}
+.vow-step-done { color: var(--vega-brand); }
+.vow-step-done .vow-step-dot {
+  border-color: var(--vega-brand);
+  background: var(--vega-brand);
+  color: #fff;
+}
+.vow-step-sep {
+  width: 18px;
+  height: 1.5px;
+  background: var(--vega-card-line);
+}
+
+.vow-loading { padding: 22px; text-align: center; color: var(--vega-muted); font-size: 13px; }
+.vow-row { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; padding: 4px 0 10px; }
+.vow-ic { width: 18px; height: 18px; flex: 0 0 auto; }
+.vow-ok-row { color: var(--vega-brand); }
+.vow-warn-row { color: #f59e0b; }
+.vow-bad-row { color: #dc2626; }
+.vow-kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 0;
+  font-size: 13px;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.12);
+}
+.vow-kv span { opacity: 0.6; }
+.vow-kv code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  color: var(--vega-brand);
+  word-break: break-all;
+  text-align: right;
+}
+.vow-hint { font-size: 12px; color: var(--vega-muted); margin: 8px 0 4px; }
+.vow-dim { opacity: 0.5; }
+.vow-cands {
+  margin: 4px 0 10px;
+  padding-left: 18px;
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: var(--vega-muted);
+}
+.vow-cands li { padding: 1px 0; }
+.vow-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  margin: 4px 0 4px;
+  border-radius: 8px;
+  border: 1px solid var(--vega-card-line);
+  background: transparent;
+  color: var(--vega-text);
+  font-size: 13px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.vow-input:focus { outline: none; border-color: var(--vega-brand); }
+
+/* 登录视图: QR + 说明 */
+.vow-login { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+.vow-qr {
+  flex: 0 0 auto;
+  width: 165px;
+  height: 165px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border-radius: 10px;
+  padding: 6px;
+  box-sizing: content-box;
+}
+.vow-qr svg { width: 100%; height: 100%; display: block; }
+.vow-login-info { flex: 1; min-width: 180px; }
+.vow-step-line { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; margin: 8px 0 4px; }
+.vow-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--vega-brand-soft);
+  color: var(--vega-brand);
+  font-size: 11px;
+}
+.vow-url { display: block; font-size: 12px; color: var(--vega-brand); word-break: break-all; text-decoration: none; }
+.vow-url:hover { text-decoration: underline; }
+.vow-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: var(--vega-text);
+  background: var(--vega-brand-soft);
+  border: 1px solid var(--vega-brand-line);
+  border-radius: 8px;
+  padding: 8px 12px;
+  text-align: center;
+  margin: 4px 0;
+}
+.vow-poll { font-size: 12px; color: var(--vega-muted); margin-top: 8px; }
+
+/* 就绪视图 */
+.vow-ready { text-align: center; padding: 18px 8px; }
+.vow-ready-ic { width: 48px; height: 48px; color: var(--vega-brand); }
+.vow-ready-title { font-size: 17px; font-weight: 700; color: var(--vega-brand); margin: 10px 0 2px; }
+
+/* hub 入口 accent 按钮 */
+.vega-panel-btn.vega-panel-accent {
+  color: var(--vega-brand);
+  border-color: var(--vega-brand-line);
+  background: var(--vega-brand-soft);
+}
+.vega-panel-btn.vega-panel-accent:hover { background: rgba(22, 163, 74, 0.18); }
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes vow-ready-pop {
+    from { opacity: 0; transform: scale(0.6); }
+    to { opacity: 1; transform: none; }
+  }
+  .vow-ready-ic { animation: vow-ready-pop 0.4s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
+}

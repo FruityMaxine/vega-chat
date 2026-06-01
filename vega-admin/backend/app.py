@@ -19,7 +19,7 @@ from typing import Optional
 import bcrypt
 import jwt
 from fastapi import Cookie, FastAPI, HTTPException, Header, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, EmailStr
 from pymongo import MongoClient
@@ -591,6 +591,33 @@ async def codex_onboard_login_cancel(refreshToken: Optional[str] = Cookie(None))
     user = get_current_user(refreshToken)
     status, body = await _forward("POST", "/codex/onboard/login/cancel", user, {})
     return JSONResponse(body, status_code=status)
+
+
+def _proxy_raw(path: str, user: dict):
+    """转发到 proxy 并原样返回字节 + content-type (供 QR SVG 等非 json 响应)。"""
+    url = CODEX_PROXY_BASE + path
+    headers = {
+        "x-librechat-user-role": user.get("role") or "USER",
+        "x-librechat-user-id": str(user.get("_id")),
+        "x-librechat-user-email": user.get("email") or "",
+    }
+    req = urllib.request.Request(url, headers=headers, method="GET")
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            return resp.status, resp.read(), resp.headers.get("content-type", "application/octet-stream")
+    except urllib.error.HTTPError as exc:
+        return exc.code, exc.read(), exc.headers.get("content-type", "application/json")
+    except Exception as exc:  # noqa: BLE001 - proxy 不可达
+        return 502, f'{{"ok":false,"error":"proxy unreachable: {exc}"}}'.encode(), "application/json"
+
+
+@app.get("/api/codex/onboard/qr")
+async def codex_onboard_qr(refreshToken: Optional[str] = Cookie(None), data: str = ""):
+    user = get_current_user(refreshToken)
+    path = "/codex/onboard/qr?data=" + urllib.parse.quote(data, safe="")
+    loop = asyncio.get_event_loop()
+    status, content, ctype = await loop.run_in_executor(None, _proxy_raw, path, user)
+    return Response(content=content, media_type=ctype, status_code=status)
 
 
 # ────── 静态资源 ──────

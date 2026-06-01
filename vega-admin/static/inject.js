@@ -346,6 +346,181 @@
     loadSessions();
   }
 
+  // ── 组onboard TickC: codex 接入向导 (检测→登录扫码→就绪) ──
+  function _esc(s) {
+    var d = document.createElement("div");
+    d.textContent = s == null ? "" : String(s);
+    return d.innerHTML;
+  }
+
+  function onboardApi(path, opts) {
+    return codexApi("onboard/" + path, opts);
+  }
+
+  var _wizPoll = null;
+  var WIZ_STEPS = [["detect", "检测"], ["login", "登录"], ["ready", "就绪"]];
+
+  function wizStopPoll() {
+    if (_wizPoll) {
+      clearInterval(_wizPoll);
+      _wizPoll = null;
+    }
+  }
+
+  function wizRenderSteps(active) {
+    var el = document.getElementById("vow-steps");
+    if (!el) return;
+    var hit = false;
+    el.innerHTML = WIZ_STEPS.map(function (s, i) {
+      var done = hit ? "" : (s[0] === active ? "" : " vow-step-done");
+      if (s[0] === active) hit = true;
+      var cls = "vow-step" + (s[0] === active ? " vow-step-active" : done);
+      return '<div class="' + cls + '"><span class="vow-step-dot">' + (i + 1) + "</span>" + s[1] + "</div>";
+    }).join('<span class="vow-step-sep"></span>');
+  }
+
+  function wizBody(html) {
+    var b = document.getElementById("vow-body");
+    if (b) b.innerHTML = html;
+    return b;
+  }
+
+  function wizDetect() {
+    wizRenderSteps("detect");
+    wizBody('<div class="vow-loading vega-shimmer">正在探测 codex…</div>');
+    onboardApi("detect").then(function (d) {
+      if (d && d.found) {
+        wizBody(
+          '<div class="vow-row vow-ok-row"><svg class="vow-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>已找到 codex</div>' +
+          '<div class="vow-kv"><span>路径</span><code>' + _esc(d.path) + "</code></div>" +
+          '<div class="vow-kv"><span>版本</span><code>' + _esc(d.version) + "</code></div>" +
+          '<button type="button" class="vega-panel-btn" id="vow-next">下一步：检测登录</button>'
+        );
+        var nx = document.getElementById("vow-next");
+        if (nx) nx.addEventListener("click", wizCheckLogin);
+      } else {
+        var cands = ((d && d.candidates) || []).map(function (c) {
+          return "<li>" + _esc(c.path) + (c.exists ? "" : ' <span class="vow-dim">(不存在)</span>') + "</li>";
+        }).join("");
+        wizBody(
+          '<div class="vow-row vow-warn-row">未自动找到 codex，手动指定路径</div>' +
+          '<div class="vow-hint">已探测的位置：</div><ul class="vow-cands">' + cands + "</ul>" +
+          '<input class="vow-input" id="vow-custom" placeholder="如 /usr/local/bin/codex">' +
+          '<button type="button" class="vega-panel-btn" id="vow-savepath">保存并重试</button>'
+        );
+        var sv = document.getElementById("vow-savepath");
+        if (sv) sv.addEventListener("click", function () {
+          var p = (document.getElementById("vow-custom").value || "").trim();
+          if (!p) return;
+          onboardApi("config", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ codex_bin: p }) })
+            .then(function (rr) {
+              if (rr && rr.ok) wizDetect();
+              else vtoast((rr && rr.error) || "路径无效");
+            });
+        });
+      }
+    });
+  }
+
+  function wizCheckLogin() {
+    wizRenderSteps("login");
+    wizBody('<div class="vow-loading vega-shimmer">检测登录态…</div>');
+    onboardApi("status").then(function (d) {
+      if (d && d.logged_in) wizReady("已登录（" + (d.method || "ChatGPT") + "）");
+      else wizLogin();
+    });
+  }
+
+  function wizLogin() {
+    wizRenderSteps("login");
+    wizBody('<div class="vow-loading vega-shimmer">正在发起设备登录…</div>');
+    onboardApi("login/start", { method: "POST" }).then(function (d) {
+      if (d && d.already_logged_in) { wizReady("已登录（" + (d.method || "ChatGPT") + "）"); return; }
+      if (!d || !d.url || !d.code) {
+        wizBody('<div class="vow-row vow-bad-row">发起登录失败：' + _esc((d && d.error) || "未知") + "</div>");
+        return;
+      }
+      wizBody(
+        '<div class="vow-login">' +
+          '<div class="vow-qr" id="vow-qr"><div class="vow-loading vega-shimmer">生成二维码…</div></div>' +
+          '<div class="vow-login-info">' +
+            '<div class="vow-step-line"><span class="vow-num">1</span>手机扫码 或 打开链接</div>' +
+            '<a class="vow-url" href="' + _esc(d.url) + '" target="_blank" rel="noopener">' + _esc(d.url) + "</a>" +
+            '<div class="vow-step-line"><span class="vow-num">2</span>输入一次性码</div>' +
+            '<div class="vow-code">' + _esc(d.code) + "</div>" +
+            '<div class="vow-poll" id="vow-poll">等待授权…</div>' +
+          "</div>" +
+        "</div>" +
+        '<button type="button" class="vega-panel-btn vega-panel-danger" id="vow-cancel">取消登录</button>'
+      );
+      fetch("/vega-admin/api/codex/onboard/qr?data=" + encodeURIComponent(d.url), { credentials: "include" })
+        .then(function (r) { return r.text(); })
+        .then(function (svg) {
+          var q = document.getElementById("vow-qr");
+          if (q && svg.indexOf("<svg") >= 0) q.innerHTML = svg;
+        }).catch(function () {});
+      var cx = document.getElementById("vow-cancel");
+      if (cx) cx.addEventListener("click", function () {
+        wizStopPoll();
+        onboardApi("login/cancel", { method: "POST" });
+        wizDetect();
+      });
+      _wizPoll = setInterval(function () {
+        onboardApi("login/poll").then(function (p) {
+          var pe = document.getElementById("vow-poll");
+          if (!pe) return;
+          if (p && p.status === "success") { wizStopPoll(); wizReady("登录成功"); }
+          else if (p && p.status === "failed") {
+            wizStopPoll();
+            pe.className = "vow-poll vow-bad-row";
+            pe.textContent = "登录失败：" + ((p.detail || "").slice(0, 60));
+          } else { pe.textContent = "等待授权…（" + ((p && p.elapsed) || 0) + "s）"; }
+        });
+      }, 3000);
+    });
+  }
+
+  function wizReady(msg) {
+    wizStopPoll();
+    wizRenderSteps("ready");
+    wizBody(
+      '<div class="vow-ready">' +
+        '<svg class="vow-ready-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12l3 3 5-6"/></svg>' +
+        '<div class="vow-ready-title">codex 已就绪</div>' +
+        '<div class="vow-hint">' + _esc(msg || "已接入并登录") + "，现在可在聊天里选 Codex 模型对话。</div>" +
+        '<button type="button" class="vega-panel-btn" id="vow-done">完成</button>' +
+      "</div>"
+    );
+    var dn = document.getElementById("vow-done");
+    if (dn) dn.addEventListener("click", function () {
+      var m = document.getElementById("vega-onboard-modal");
+      if (m) m.style.display = "none";
+    });
+  }
+
+  function openOnboardWizard() {
+    var m = document.getElementById("vega-onboard-modal");
+    if (!m) {
+      m = document.createElement("div");
+      m.id = "vega-onboard-modal";
+      m.className = "vsm-modal vow-modal";
+      m.innerHTML =
+        '<div class="vsm-card vow-card"><div class="vsm-head">接入 codex' +
+        '<button class="vsm-close" id="vow-x" aria-label="关闭"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>' +
+        '<div class="vow-steps" id="vow-steps"></div>' +
+        '<div class="vow-body" id="vow-body"></div></div>';
+      document.body.appendChild(m);
+      var _close = function () { wizStopPoll(); onboardApi("login/cancel", { method: "POST" }); m.style.display = "none"; };
+      m.addEventListener("click", function (e) { if (e.target === m) _close(); });
+      m.querySelector("#vow-x").addEventListener("click", _close);
+    }
+    m.style.display = "flex";
+    m.classList.remove("vega-anim-open");
+    void m.offsetWidth;
+    m.classList.add("vega-anim-open");
+    wizDetect();
+  }
+
   function buildPanel() {
     var panel = document.createElement("div");
     panel.id = "vega-codex-panel";
@@ -360,6 +535,7 @@
       '<div class="vega-panel-row"><span class="vega-panel-k">当前会话</span><span class="vega-panel-v" id="vp-thread">—</span></div>' +
       '<button type="button" class="vega-panel-btn" id="vp-interrupt">停止当前回答</button>' +
       '<button type="button" class="vega-panel-btn" id="vp-sessions">管理 codex 会话</button>' +
+      '<button type="button" class="vega-panel-btn vega-panel-accent" id="vp-onboard">接入 codex（向导）</button>' +
       '<button type="button" class="vega-panel-btn vega-panel-danger" id="vp-close">关闭 Codex 会话</button>' +
       '<div class="vega-hub-sec">管理</div>' +
       '<a class="vega-panel-link" href="/admin-panel/" target="_blank" rel="noopener">用户 / 模型 / 配额 管理 (可选面板)</a>' +
@@ -377,6 +553,10 @@
 
     panel.querySelector("#vp-sessions").addEventListener("click", function () {
       openSessionManager();
+    });
+
+    panel.querySelector("#vp-onboard").addEventListener("click", function () {
+      openOnboardWizard();
     });
 
     var closeArmed = false;

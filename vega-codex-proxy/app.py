@@ -19,7 +19,7 @@ from typing import AsyncIterator, Optional
 import jwt
 from bson import ObjectId
 from fastapi import FastAPI, HTTPException, Request, Header
-from fastapi.responses import JSONResponse, StreamingResponse, FileResponse
+from fastapi.responses import JSONResponse, StreamingResponse, FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pymongo import MongoClient
 from pydantic import BaseModel
@@ -34,6 +34,13 @@ from session_store import get_store
 import codex_schema
 # 组onboard TickA: codex 智能接入探测 / 登录态 / 配置落盘
 import codex_onboard
+
+# 组onboard TickC: QR 码生成 (segno 纯 python, 把验证 URL 转 SVG 供前端登录视图)
+try:
+    import segno
+except ImportError:  # 公开仓部署若未装 segno, QR 端点优雅降级
+    segno = None
+
 
 # turn 空闲超时: 超过此秒数无任何事件 = codex 卡死, 中止并提示 (治"卡死永久挂起")
 TURN_IDLE_TIMEOUT = float(os.environ.get("CODEX_TURN_IDLE_TIMEOUT", "180"))
@@ -294,6 +301,24 @@ async def codex_onboard_login_cancel(request: Request):
     if sess is None:
         return {"ok": True, "cancelled": False, "detail": "无进行中的登录"}
     return {"ok": True, **sess.cancel()}
+
+
+@app.get("/codex/onboard/qr")
+async def codex_onboard_qr(request: Request, data: str):
+    """把 data(通常是验证 URL)编码成 QR 的 SVG, 供前端登录视图嵌入。"""
+    await require_admin(request)
+    if segno is None:
+        return JSONResponse({"ok": False, "error": "segno 未安装"}, status_code=503)
+    if not data or len(data) > 512:
+        return JSONResponse({"ok": False, "error": "data 缺失或过长"}, status_code=400)
+    try:
+        qr = segno.make(data, error="m")
+        svg = qr.svg_inline(scale=5, border=2, dark="#16a34a")
+    except Exception as exc:  # noqa: BLE001 - QR 生成兜底
+        return JSONResponse({"ok": False, "error": f"QR 生成失败: {exc}"}, status_code=500)
+    return Response(content=svg, media_type="image/svg+xml")
+
+
 
 
 # ────── codex 状态仪表盘 (静态页, 同源轮询 /healthz) ──────
