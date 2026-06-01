@@ -267,8 +267,9 @@
       var s = document.getElementById("vp-status");
       if (!s) return;
       if (d && d.ok) {
-        s.textContent = d.appServerInitialized ? "在线" : "待命";
-        s.className = "vega-panel-v " + (d.appServerInitialized ? "vega-ok" : "vega-warn");
+        var _on = d.appServerInitialized;
+        s.innerHTML = _on ? '<span class="vega-live-dot"></span>在线' : "待命";
+        s.className = "vega-panel-v " + (_on ? "vega-ok" : "vega-warn");
         document.getElementById("vp-thread").textContent =
           (d.threadId ? d.threadId.slice(0, 8) : "无会话") +
           (d.archived ? " (已关闭)" : "") +

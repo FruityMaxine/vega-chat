@@ -420,3 +420,24 @@ code.vega-tok-chip:hover {
     animation: vega-shimmer 1.5s linear infinite;
   }
 }
+
+/* 引擎在线"心跳"点 (雷达 ping, 强化 live 感; JS 在状态=在线时插入) */
+.vega-live-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 5px;
+  border-radius: 50%;
+  background: #16a34a;
+  vertical-align: middle;
+}
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes vega-live-pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.5); }
+    70%  { box-shadow: 0 0 0 5px rgba(22, 163, 74, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
+  }
+  .vega-live-dot {
+    animation: vega-live-pulse 2s ease-out infinite;
+  }
+}
