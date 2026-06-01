@@ -7,6 +7,8 @@
 基于 [LibreChat](https://github.com/danny-avila/LibreChat) 内核，叠加长驻 codex 引擎、
 专业级 codex 交互体验与一键自部署 —— 不是补丁，是一体化的差异产品。
 
+**简体中文** · [English](./README.en.md)
+
 [![License](https://img.shields.io/badge/license-PolyForm%20Noncommercial-2ea043?style=flat-square)](./LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
 [![Docker](https://img.shields.io/badge/docker-compose-2496ED?style=flat-square&logo=docker&logoColor=white)](https://docs.docker.com/compose/)
