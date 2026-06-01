@@ -572,6 +572,27 @@ async def codex_onboard_config(request: Request, refreshToken: Optional[str] = C
     return JSONResponse(body, status_code=status)
 
 
+@app.post("/api/codex/onboard/login/start")
+async def codex_onboard_login_start(refreshToken: Optional[str] = Cookie(None)):
+    user = get_current_user(refreshToken)
+    status, body = await _forward("POST", "/codex/onboard/login/start", user, {})
+    return JSONResponse(body, status_code=status)
+
+
+@app.get("/api/codex/onboard/login/poll")
+async def codex_onboard_login_poll(refreshToken: Optional[str] = Cookie(None)):
+    user = get_current_user(refreshToken)
+    status, body = await _forward("GET", "/codex/onboard/login/poll", user)
+    return JSONResponse(body, status_code=status)
+
+
+@app.post("/api/codex/onboard/login/cancel")
+async def codex_onboard_login_cancel(refreshToken: Optional[str] = Cookie(None)):
+    user = get_current_user(refreshToken)
+    status, body = await _forward("POST", "/codex/onboard/login/cancel", user, {})
+    return JSONResponse(body, status_code=status)
+
+
 # ────── 静态资源 ──────
 # /vega-admin/        → index.html
 # /vega-admin/inject.js → 浮动按钮注入脚本（被 LibreChat 主站加载）

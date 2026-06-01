@@ -11,8 +11,11 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
+import threading
+import time
 from pathlib import Path
 
 # 配置落盘位置 (自定义 codex 路径等), 默认模块同级, 可 env 覆盖
@@ -158,3 +161,141 @@ def persist_config(codex_bin: str) -> dict:
         return {"ok": False, "error": f"落盘失败: {exc}"}
     return {"ok": True, "codex_bin": expanded, "version": version,
             "config_path": CONFIG_PATH}
+
+
+# ════════ 组onboard TickB: device-auth 前端登录编排 ════════
+# `codex login --device-auth` 设备授权流 (沙箱实测 codex-cli 0.130.0 输出):
+#   验证 URL: https://auth.openai.com/codex/device  (固定)
+#   一次性码: XXXX-XXXX (如 Y6SI-ECVCE, 15 分钟过期), 输出含 ANSI 色码需剥离
+# 用户在别设备打开 URL + 输入码授权后, CLI 自动轮询完成并写 ~/.codex/auth.json。
+
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
+_URL_RE = re.compile(r"https://\S+")
+# 一次性码: 沙箱实测格式 XXXX-XXXXX (如 Y6SI-ECVCE, 4-5 位), 用弹性区间容错
+_CODE_RE = re.compile(r"\b([A-Z0-9]{4,8}-[A-Z0-9]{4,8})\b")
+
+
+class LoginSession:
+    """管理一次 codex login --device-auth: spawn 子进程 + 提取 URL/码 + 后台轮询完成。
+
+    单例 (_current): 同时只允许一个登录流。线程安全 (_lock)。
+    安全: 调用方应先查 check_login_status, 已登录则不启动 (避免覆盖现有 auth)。
+    """
+
+    _lock = threading.Lock()
+    _current: "LoginSession | None" = None
+
+    def __init__(self, codex_bin: str):
+        self.codex_bin = codex_bin
+        self.proc: subprocess.Popen | None = None
+        self.url: str | None = None
+        self.code: str | None = None
+        self.session_id: str | None = None
+        self.started_at: float = 0.0
+        self.error: str | None = None
+        self._output: list[str] = []
+
+    @classmethod
+    def start(cls, codex_bin: str | None = None, timeout_extract: float = 20.0) -> "LoginSession":
+        """启动登录流, 读初始输出提取 URL+码 (最多 timeout_extract 秒), 返回 self。
+
+        已有进行中的会话先取消。失败时 self.error 非空。
+        """
+        with cls._lock:
+            if cls._current is not None and cls._current.is_running():
+                cls._current.cancel()
+            bin_path = codex_bin or detect_codex_bin().get("path")
+            if not bin_path:
+                raise RuntimeError("未找到 codex 二进制")
+            sess = cls(bin_path)
+            sess._spawn(timeout_extract)
+            cls._current = sess
+            return sess
+
+    def _spawn(self, timeout_extract: float) -> None:
+        self.started_at = time.time()
+        try:
+            self.proc = subprocess.Popen(
+                [self.codex_bin, "login", "--device-auth"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            self.error = f"启动 codex login 失败: {exc}"
+            return
+        self.session_id = f"login-{self.proc.pid}"
+        reader = threading.Thread(target=self._read_output, daemon=True)
+        reader.start()
+        deadline = time.time() + timeout_extract
+        while time.time() < deadline:
+            if self.url and self.code:
+                return
+            if self.proc.poll() is not None:
+                self.error = "codex login 提前退出: " + "".join(self._output)[:300]
+                return
+            time.sleep(0.2)
+        if not (self.url and self.code):
+            self.error = "提取验证 URL/码 超时 (网络异常?)"
+
+    def _read_output(self) -> None:
+        """后台读 stdout (剥 ANSI), 提取 URL + 一次性码, 累积全文供诊断。"""
+        try:
+            assert self.proc is not None and self.proc.stdout is not None
+            for line in self.proc.stdout:
+                clean = _ANSI_RE.sub("", line)
+                self._output.append(clean)
+                if not self.url:
+                    m = _URL_RE.search(clean)
+                    if m:
+                        self.url = m.group(0)
+                if not self.code:
+                    m = _CODE_RE.search(clean)
+                    if m:
+                        self.code = m.group(1)
+        except Exception:  # noqa: BLE001 - 读流容错, 不影响主流程
+            pass
+
+    def is_running(self) -> bool:
+        return self.proc is not None and self.proc.poll() is None
+
+    def poll(self) -> dict:
+        """登录状态: pending / success / failed。"""
+        if self.error:
+            return {"status": "failed", "detail": self.error}
+        if self.proc is None:
+            return {"status": "failed", "detail": "进程未启动"}
+        rc = self.proc.poll()
+        if rc is None:
+            return {"status": "pending", "url": self.url, "code": self.code,
+                    "elapsed": int(time.time() - self.started_at)}
+        if rc == 0:
+            return {"status": "success", "detail": "登录完成", "method": "ChatGPT"}
+        return {"status": "failed",
+                "detail": f"codex login 退出码 {rc}: " + "".join(self._output)[-300:]}
+
+    def cancel(self) -> dict:
+        """终止进行中的登录进程 (不影响已写入的 auth)。"""
+        if self.proc is not None and self.proc.poll() is None:
+            try:
+                self.proc.terminate()
+                try:
+                    self.proc.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    self.proc.kill()
+            except Exception:  # noqa: BLE001
+                pass
+        return {"ok": True, "cancelled": True, "session_id": self.session_id}
+
+    def info(self) -> dict:
+        """启动后返给前端的初始信息 (URL + 码 + session_id)。"""
+        if self.error:
+            return {"ok": False, "error": self.error}
+        return {"ok": True, "session_id": self.session_id, "url": self.url,
+                "code": self.code, "verification_url": self.url}
+
+
+def current_login() -> "LoginSession | None":
+    """取当前进行中的登录会话 (供 poll/cancel 端点)。"""
+    return LoginSession._current

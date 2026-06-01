@@ -1,7 +1,9 @@
-"""codex_onboard 单测 — 探测/登录态/配置落盘的纯逻辑 (mock 子进程, 不依赖真 codex)。"""
+"""codex_onboard 单测 — 探测/登录态/配置落盘/device-auth 登录编排 (mock 子进程, 不依赖真 codex)。"""
 import os
 import subprocess
 import sys
+
+import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -138,3 +140,117 @@ def test_login_status_subprocess_error(monkeypatch):
     r = codex_onboard.check_login_status()
     assert r["reachable"] is False
     assert "探测失败" in r["detail"]
+
+
+# ── LoginSession (device-auth 登录编排) ──
+# 沙箱实测的真实 device-auth 输出 (含 ANSI 色码, 验剥离)
+_DEVICE_AUTH_LINES = [
+    "\nWelcome to Codex [v0.130.0]\n",
+    "OpenAI's command-line coding agent\n",
+    "\n",
+    "Follow these steps to sign in with ChatGPT using device code authorization:\n",
+    "\n",
+    "1. Open this link in your browser and sign in to your account\n",
+    "   \x1b[94mhttps://auth.openai.com/codex/device\x1b[0m\n",
+    "\n",
+    "2. Enter this one-time code (expires in 15 minutes)\n",
+    "   \x1b[94mY6SI-ECVCE\x1b[0m\n",
+    "\n",
+]
+
+
+class _FakePopen:
+    def __init__(self, lines, returncode=None):
+        self.pid = 4242
+        self.stdout = iter(lines)
+        self._rc = returncode
+        self.terminated = False
+
+    def poll(self):
+        return self._rc
+
+    def set_rc(self, rc):
+        self._rc = rc
+
+    def terminate(self):
+        self.terminated = True
+        self._rc = -15
+
+    def wait(self, timeout=None):
+        return self._rc
+
+    def kill(self):
+        self._rc = -9
+
+
+def _reset_login(monkeypatch):
+    monkeypatch.setattr(codex_onboard.LoginSession, "_current", None, raising=False)
+
+
+def _patch_popen(monkeypatch, fake):
+    monkeypatch.setattr(codex_onboard, "detect_codex_bin", lambda custom=None: {"path": "/x/codex"})
+    monkeypatch.setattr(codex_onboard.subprocess, "Popen", lambda *a, **k: fake)
+
+
+def test_login_extracts_url_code(monkeypatch):
+    _reset_login(monkeypatch)
+    _patch_popen(monkeypatch, _FakePopen(_DEVICE_AUTH_LINES))
+    sess = codex_onboard.LoginSession.start(timeout_extract=5.0)
+    assert sess.url == "https://auth.openai.com/codex/device"  # ANSI 已剥离
+    assert sess.code == "Y6SI-ECVCE"
+    assert sess.error is None
+    assert sess.session_id == "login-4242"
+    assert sess.poll()["status"] == "pending"  # 进程仍轮询中
+    assert sess.info()["ok"] is True
+
+
+def test_login_success(monkeypatch):
+    _reset_login(monkeypatch)
+    fake = _FakePopen(_DEVICE_AUTH_LINES)
+    _patch_popen(monkeypatch, fake)
+    sess = codex_onboard.LoginSession.start(timeout_extract=5.0)
+    fake.set_rc(0)
+    assert sess.poll()["status"] == "success"
+
+
+def test_login_failed(monkeypatch):
+    _reset_login(monkeypatch)
+    fake = _FakePopen(_DEVICE_AUTH_LINES)
+    _patch_popen(monkeypatch, fake)
+    sess = codex_onboard.LoginSession.start(timeout_extract=5.0)
+    fake.set_rc(1)
+    assert sess.poll()["status"] == "failed"
+
+
+def test_login_cancel(monkeypatch):
+    _reset_login(monkeypatch)
+    fake = _FakePopen(_DEVICE_AUTH_LINES)
+    _patch_popen(monkeypatch, fake)
+    sess = codex_onboard.LoginSession.start(timeout_extract=5.0)
+    r = sess.cancel()
+    assert r["cancelled"] is True
+    assert fake.terminated is True
+
+
+def test_login_no_bin(monkeypatch):
+    _reset_login(monkeypatch)
+    monkeypatch.setattr(codex_onboard, "detect_codex_bin", lambda custom=None: {"path": None})
+    with pytest.raises(RuntimeError):
+        codex_onboard.LoginSession.start(timeout_extract=1.0)
+
+
+def test_login_early_exit(monkeypatch):
+    _reset_login(monkeypatch)
+    _patch_popen(monkeypatch, _FakePopen([], returncode=1))  # 无输出立即退出
+    sess = codex_onboard.LoginSession.start(timeout_extract=2.0)
+    assert sess.error is not None
+    assert sess.poll()["status"] == "failed"
+
+
+def test_login_current_helper(monkeypatch):
+    _reset_login(monkeypatch)
+    assert codex_onboard.current_login() is None
+    fake = _FakePopen(_DEVICE_AUTH_LINES)
+    _patch_popen(monkeypatch, fake)
+    sess = codex_onboard.LoginSession.start(timeout_extract=5.0)
+    assert codex_onboard.current_login() is sess

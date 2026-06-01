@@ -256,6 +256,46 @@ async def codex_onboard_config(request: Request, body: OnboardConfigReq):
     return JSONResponse(result, status_code=200 if result.get("ok") else 400)
 
 
+# ── 组onboard TickB: device-auth 前端登录编排 ──
+@app.post("/codex/onboard/login/start")
+async def codex_onboard_login_start(request: Request):
+    """启动 codex device-auth 登录流, 返回验证 URL + 一次性码 (前端转二维码)。
+
+    护栏: 已登录则直接返回 already_logged_in, 不启动新流程 (避免覆盖现有 auth)。
+    """
+    await require_admin(request)
+    loop = asyncio.get_event_loop()
+    status = await loop.run_in_executor(None, codex_onboard.check_login_status)
+    if status.get("logged_in"):
+        return {"ok": True, "already_logged_in": True, "method": status.get("method")}
+    try:
+        sess = await loop.run_in_executor(None, codex_onboard.LoginSession.start)
+    except Exception as exc:  # noqa: BLE001 - 启动失败兜底
+        return JSONResponse({"ok": False, "error": str(exc)}, status_code=400)
+    info = sess.info()
+    return JSONResponse(info, status_code=200 if info.get("ok") else 502)
+
+
+@app.get("/codex/onboard/login/poll")
+async def codex_onboard_login_poll(request: Request):
+    """轮询登录状态: idle / pending / success / failed。"""
+    await require_admin(request)
+    sess = codex_onboard.current_login()
+    if sess is None:
+        return {"ok": True, "status": "idle"}
+    return {"ok": True, **sess.poll()}
+
+
+@app.post("/codex/onboard/login/cancel")
+async def codex_onboard_login_cancel(request: Request):
+    """取消进行中的登录 (杀进程, 不影响已写入的 auth)。"""
+    await require_admin(request)
+    sess = codex_onboard.current_login()
+    if sess is None:
+        return {"ok": True, "cancelled": False, "detail": "无进行中的登录"}
+    return {"ok": True, **sess.cancel()}
+
+
 # ────── codex 状态仪表盘 (静态页, 同源轮询 /healthz) ──────
 _STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 if os.path.isdir(_STATIC_DIR):
