@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 部署 / 使用问题
+    url: https://github.com/FruityMaxine/vega-chat/blob/main/docs/DEPLOY.md
+    about: 部署相关请先看 DEPLOY.md 与 QUICKSTART.md
+  - name: 安全漏洞
+    url: https://github.com/FruityMaxine/vega-chat/blob/main/SECURITY.md
+    about: 安全问题请勿公开提 issue，按 SECURITY.md 私下上报

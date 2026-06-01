@@ -1,0 +1,58 @@
+name: Bug 报告
+description: 报告一个可复现的问题
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈。提交前请先搜索是否已有相同 issue。
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 现象
+      description: 发生了什么？期望是什么？
+      placeholder: codex 长输出时消息中断在第 N 行……
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. 打开 chat，选 Codex 模型
+        2. 发送 "……"
+        3. 观察 ……
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: 涉及组件
+      options:
+        - vega-codex-proxy (后端 / codex app-server)
+        - vega-admin (inject.js 前端增强)
+        - 部署脚本 (setup.sh / codex-onboard.sh)
+        - docker-compose / 配置
+        - 文档
+        - 不确定
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: 环境
+      description: codex CLI 版本、OS、docker 版本、浏览器
+      placeholder: |
+        codex --version: 0.130.0
+        OS: Ubuntu 24.04
+        浏览器: Chrome 130
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: 相关日志
+      description: vega-codex-proxy 日志 / 浏览器 console / `curl /healthz` 输出
+      render: shell
+    validations:
+      required: false
