@@ -1,0 +1,40 @@
+# =====================================================================
+# Vega Chat - chat.example.com
+# 反代到本机 LibreChat (127.0.0.1:3080)
+# 用户明令开放访问，不接 Authelia 也不做 token 守门
+# LibreChat 自身有登录页 = 项目级认证已足够
+# =====================================================================
+chat.example.com {
+	encode gzip zstd
+
+	log {
+		output file /var/log/caddy/vega-chat.log {
+			roll_size 50mb
+			roll_keep 5
+		}
+		format console
+	}
+
+	# WebSocket / SSE 长连接（LibreChat 流式输出必须）
+	@websockets {
+		header Connection *Upgrade*
+		header Upgrade websocket
+	}
+
+	# 安全 headers（不放 frame-ancestors 因为 LibreChat 自己可能 iframe artifact）
+	header {
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		# 不设 X-Frame-Options，LibreChat artifact 预览要 iframe
+	}
+
+	reverse_proxy 127.0.0.1:3080 {
+		# 大文件上传 + 长流式响应
+		flush_interval -1
+		# 透传 client IP（LibreChat 速率限制按 IP 用得到）
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+		header_up X-Forwarded-Host {host}
+	}
+}

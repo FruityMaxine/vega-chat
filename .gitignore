@@ -1,0 +1,25 @@
+# 密钥
+docker/.env
+docker/.env.local
+
+# 容器数据
+docker/data/
+
+# 日志
+*.log
+docker/data/logs/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# SQLite session store (codex 映射, 运行时生成)
+vega-codex-proxy/sessions.db
+vega-codex-proxy/sessions.db-wal
+vega-codex-proxy/sessions.db-shm
+
+# node render harness 依赖 (TickB, 运行时 npm install)
+vega-codex-proxy/tests/render-harness/node_modules/
+vega-codex-proxy/tests/render-harness/package-lock.json

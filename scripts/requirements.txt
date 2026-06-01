@@ -1,0 +1,8 @@
+# Vega Chat — Python 依赖 (vega-codex-proxy + vega-admin 后端)
+fastapi
+uvicorn[standard]
+pymongo
+pyjwt
+bcrypt
+# 仅前端 E2E 实测需要 (可选)
+# playwright

@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vega Chat 管理面板</title>
+<style>
+:root {
+  --bg: #f6f8fa;
+  --card: #ffffff;
+  --border: #e5e7eb;
+  --text: #111827;
+  --muted: #6b7280;
+  --primary: #14532d;
+  --primary-hover: #166534;
+  --danger: #dc2626;
+  --danger-hover: #b91c1c;
+  --success: #16a34a;
+  --warning: #f59e0b;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b0f14;
+    --card: #151b22;
+    --border: #30363d;
+    --text: #f0f6fc;
+    --muted: #8b949e;
+    --primary: #2ea043;
+    --primary-hover: #3fb950;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.5;
+}
+header {
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+header h1 { font-size: 18px; margin: 0; font-weight: 600; }
+header .me { color: var(--muted); font-size: 13px; }
+main {
+  max-width: 1200px;
+  margin: 20px auto;
+  padding: 0 20px;
+  display: grid;
+  gap: 16px;
+}
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+}
+.card h2 { font-size: 15px; margin: 0 0 12px; }
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.row > * { flex-shrink: 0; }
+button {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 7px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.15s;
+}
+button:hover { background: var(--primary-hover); }
+button.danger { background: var(--danger); }
+button.danger:hover { background: var(--danger-hover); }
+button.ghost {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+button.ghost:hover { background: var(--bg); }
+input, select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 7px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+}
+input:focus, select:focus { outline: 2px solid var(--primary); outline-offset: -1px; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+th, td {
+  text-align: left;
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--border);
+}
+th { font-weight: 600; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.badge.admin { background: rgba(220,38,38,0.15); color: var(--danger); }
+.badge.user { background: rgba(20,83,45,0.15); color: var(--primary); }
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: var(--text);
+  color: var(--card);
+  padding: 12px 18px;
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+  font-size: 13px;
+  z-index: 9999;
+  max-width: 380px;
+}
+.toast.error { background: var(--danger); color: white; }
+.toast.success { background: var(--success); color: white; }
+.muted { color: var(--muted); font-size: 12px; }
+dialog {
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 0;
+  min-width: 360px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.35);
+}
+dialog::backdrop { background: rgba(0,0,0,0.4); }
+.dialog-body { padding: 20px 22px; }
+.dialog-body h3 { margin: 0 0 12px; font-size: 16px; }
+.dialog-body .field { margin-bottom: 10px; }
+.dialog-body .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.dialog-body .field input, .dialog-body .field select { width: 100%; }
+.dialog-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 22px; border-top: 1px solid var(--border); }
+.toggle {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  background: var(--border);
+  border-radius: 99px;
+  cursor: pointer;
+  transition: background 0.2s;
+  border: none;
+  padding: 0;
+}
+.toggle.on { background: var(--primary); }
+.toggle::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+.toggle.on::after { transform: translateX(20px); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Vega Chat 管理面板</h1>
+  <div class="me" id="me-display">加载中...</div>
+</header>
+
+<main>
+
+  <div class="card">
+    <h2>用户管理</h2>
+    <div class="row" style="margin-bottom: 12px;">
+      <button id="btn-new-user">+ 新增用户</button>
+      <button class="ghost" onclick="loadUsers()">刷新</button>
+      <span class="muted" id="users-count"></span>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>邮箱</th>
+          <th>姓名</th>
+          <th>用户名</th>
+          <th>角色</th>
+          <th>注册时间</th>
+          <th style="text-align: right;">操作</th>
+        </tr>
+      </thead>
+      <tbody id="users-body">
+        <tr><td colspan="6" class="muted">加载中...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>注册策略</h2>
+    <div class="row">
+      <span>公开注册：</span>
+      <button class="toggle" id="reg-toggle" aria-label="切换公开注册"></button>
+      <span class="muted" id="reg-state">加载中...</span>
+    </div>
+    <p class="muted" style="margin-top: 10px;">
+      开启后任何人可访问 chat 主页并自助注册。设为 ADMIN 模式（关闭）时只有你能在此页加用户。<br>
+      <strong>修改后需 SSH 执行</strong>：<code>cd /opt/vega-chat/docker && docker compose up -d --force-recreate api</code>
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>关于</h2>
+    <p class="muted">
+      Vega Chat 自建管理面板 — 复用 Vega Chat 主站 JWT 鉴权，仅 role=ADMIN 用户可访问。<br>
+      数据直连 MongoDB（与 Vega Chat 主站共享 DB）。
+    </p>
+  </div>
+
+</main>
+
+<dialog id="dlg-new-user">
+  <div class="dialog-body">
+    <h3>新增用户</h3>
+    <div class="field"><label>邮箱</label><input id="nu-email" type="email" required></div>
+    <div class="field"><label>姓名</label><input id="nu-name" required></div>
+    <div class="field"><label>用户名</label><input id="nu-username" required></div>
+    <div class="field"><label>密码（留空 = 随机生成并显示）</label><input id="nu-password" type="text"></div>
+    <div class="field"><label>角色</label>
+      <select id="nu-role"><option value="USER">USER（普通用户）</option><option value="ADMIN">ADMIN（管理员）</option></select>
+    </div>
+  </div>
+  <div class="dialog-footer">
+    <button class="ghost" onclick="dlg('dlg-new-user').close()">取消</button>
+    <button onclick="submitNewUser()">创建</button>
+  </div>
+</dialog>
+
+<dialog id="dlg-passwd">
+  <div class="dialog-body">
+    <h3>改密码</h3>
+    <div class="field"><label>目标用户</label><input id="pw-email" disabled></div>
+    <div class="field"><label>新密码</label><input id="pw-new" type="text" placeholder="留空 = 自动生成"></div>
+  </div>
+  <div class="dialog-footer">
+    <button class="ghost" onclick="dlg('dlg-passwd').close()">取消</button>
+    <button onclick="submitPasswd()">确认</button>
+  </div>
+</dialog>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const dlg = (id) => document.getElementById(id);
+
+function toast(msg, type) {
+  const t = document.createElement('div');
+  t.className = 'toast' + (type ? ' ' + type : '');
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 4500);
+}
+
+async function api(path, opts = {}) {
+  opts.credentials = 'include';
+  opts.headers = Object.assign({'Content-Type': 'application/json'}, opts.headers || {});
+  const r = await fetch('/vega-admin/api' + path, opts);
+  if (!r.ok) {
+    let err = '请求失败';
+    try { err = (await r.json()).detail || err; } catch (_) {}
+    throw new Error(err);
+  }
+  return r.json();
+}
+
+async function loadMe() {
+  try {
+    const r = await fetch('/vega-admin/api/me', { credentials: 'include' });
+    const d = await r.json();
+    if (!d.loggedIn) {
+      document.body.innerHTML = '<div style="padding: 40px; text-align: center;"><h2>未登录</h2><p>请先登录 <a href="/">主站</a> 后再访问。</p></div>';
+      return;
+    }
+    if (!d.isAdmin) {
+      document.body.innerHTML = '<div style="padding: 40px; text-align: center;"><h2>无权访问</h2><p>需要 ADMIN 角色。当前账号：' + (d.user?.email || '') + '</p></div>';
+      return;
+    }
+    $('me-display').textContent = `已登录：${d.user.email} (${d.user.role})`;
+  } catch (e) {
+    toast('鉴权检查失败：' + e.message, 'error');
+  }
+}
+
+async function loadUsers() {
+  try {
+    const users = await api('/users');
+    $('users-count').textContent = `共 ${users.length} 人`;
+    $('users-body').innerHTML = users.map(u => `
+      <tr>
+        <td>${escapeHtml(u.email)}</td>
+        <td>${escapeHtml(u.name || '')}</td>
+        <td>${escapeHtml(u.username || '')}</td>
+        <td><span class="badge ${u.role === 'ADMIN' ? 'admin' : 'user'}">${u.role}</span></td>
+        <td class="muted">${u.createdAt ? new Date(u.createdAt).toLocaleDateString('zh-CN') : ''}</td>
+        <td style="text-align: right;">
+          <button class="ghost" onclick='toggleRole(${JSON.stringify(u._id)}, ${JSON.stringify(u.role)})'>${u.role === 'ADMIN' ? '降为 USER' : '升为 ADMIN'}</button>
+          <button class="ghost" onclick='openPasswd(${JSON.stringify(u._id)}, ${JSON.stringify(u.email)})'>改密</button>
+          <button class="danger" onclick='deleteUser(${JSON.stringify(u._id)}, ${JSON.stringify(u.email)})'>删除</button>
+        </td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    toast('加载用户失败：' + e.message, 'error');
+  }
+}
+
+async function loadRegistration() {
+  try {
+    const d = await api('/registration');
+    const t = $('reg-toggle');
+    t.classList.toggle('on', d.open);
+    $('reg-state').textContent = d.open ? '已开放（任何人可注册）' : '已关闭（仅 admin 加人）';
+    t.onclick = async () => {
+      const newOpen = !d.open;
+      try {
+        await api('/registration', { method: 'POST', body: JSON.stringify({open: newOpen}) });
+        toast('已写入 .env，重启 api 后生效', 'success');
+        loadRegistration();
+      } catch (e) { toast('改注册策略失败：' + e.message, 'error'); }
+    };
+  } catch (e) { toast('加载注册状态失败：' + e.message, 'error'); }
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+$('btn-new-user').onclick = () => {
+  $('nu-email').value = ''; $('nu-name').value = ''; $('nu-username').value = ''; $('nu-password').value = ''; $('nu-role').value = 'USER';
+  dlg('dlg-new-user').showModal();
+};
+
+async function submitNewUser() {
+  try {
+    const body = {
+      email: $('nu-email').value.trim(),
+      name: $('nu-name').value.trim(),
+      username: $('nu-username').value.trim(),
+      password: $('nu-password').value.trim() || null,
+      role: $('nu-role').value,
+    };
+    const r = await api('/users', { method: 'POST', body: JSON.stringify(body) });
+    dlg('dlg-new-user').close();
+    toast(r.message || '用户已建', 'success');
+    loadUsers();
+  } catch (e) { toast('创建失败：' + e.message, 'error'); }
+}
+
+function openPasswd(id, email) {
+  $('pw-email').value = email;
+  $('pw-new').value = '';
+  $('pw-new').dataset.userId = id;
+  dlg('dlg-passwd').showModal();
+}
+
+async function submitPasswd() {
+  try {
+    const id = $('pw-new').dataset.userId;
+    const pw = $('pw-new').value.trim();
+    const body = {};
+    if (pw) body.password = pw;
+    else body.password = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+    await api('/users/' + id, { method: 'PATCH', body: JSON.stringify(body) });
+    dlg('dlg-passwd').close();
+    toast('密码已更新' + (pw ? '' : `，新密码: ${body.password}`), 'success');
+  } catch (e) { toast('改密失败：' + e.message, 'error'); }
+}
+
+async function toggleRole(id, currentRole) {
+  const newRole = currentRole === 'ADMIN' ? 'USER' : 'ADMIN';
+  if (!confirm(`确认将该用户改为 ${newRole}？`)) return;
+  try {
+    await api('/users/' + id, { method: 'PATCH', body: JSON.stringify({role: newRole}) });
+    toast('角色已更新', 'success');
+    loadUsers();
+  } catch (e) { toast('改角色失败：' + e.message, 'error'); }
+}
+
+async function deleteUser(id, email) {
+  if (!confirm(`确认删除 ${email} ？不可恢复。`)) return;
+  try {
+    await api('/users/' + id, { method: 'DELETE' });
+    toast('已删除', 'success');
+    loadUsers();
+  } catch (e) { toast('删除失败：' + e.message, 'error'); }
+}
+
+(async () => {
+  await loadMe();
+  await loadUsers();
+  await loadRegistration();
+})();
+</script>
+
+</body>
+</html>

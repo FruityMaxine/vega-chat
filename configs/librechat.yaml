@@ -1,0 +1,163 @@
+# =========================================================
+# Vega Chat - LibreChat 配置
+# Version: 1.3.1.0
+# Domain:  https://chat.example.com
+# =========================================================
+
+version: 1.3.11
+cache: true
+
+# 站点接口选项
+interface:
+  customWelcome: "欢迎进入 Vega Chat - admin 控制台 + 多模型聊天"
+  privacyPolicy:
+    externalUrl: 'https://example.com/'
+    openNewTab: true
+  # 隐藏原始 endpoint 选单,强制走 modelSpecs(admin 预设)
+  endpointsMenu: false
+  modelSelect: false
+  parameters: false
+  presets: true
+  prompts:
+    use: true
+    create: true
+    share: false
+    public: false
+  bookmarks: true
+  multiConvo: true
+  agents:
+    use: true
+    create: true
+    share: false
+    public: false
+  marketplace:
+    use: false
+  fileCitations: true
+  fileSearch: true
+
+# =========================================================
+# ModelSpecs - admin 预设的"模型套餐",用户只能从这选
+# label 直接写模型名 + 是否 thinking, 不做中文意译
+# =========================================================
+modelSpecs:
+  enforce: true       # 必须从 spec 选,不允许自由切模型
+  prioritize: true    # 排在模型选单顶部
+  list:
+    - name: "deepseek-v4-flash"
+      label: "DeepSeek V4 Flash"
+      description: "DeepSeek V4 Flash (不开启 thinking)"
+      iconURL: "https://www.deepseek.com/favicon.ico"
+      default: true
+      preset:
+        endpoint: "DeepSeek-Flash"
+        model: "deepseek-v4-flash"
+
+    - name: "deepseek-v4-pro-thinking"
+      label: "DeepSeek V4 Pro Thinking"
+      description: "DeepSeek V4 Pro (开启 thinking, 最高强度)"
+      iconURL: "https://www.deepseek.com/favicon.ico"
+      preset:
+        endpoint: "DeepSeek-Pro-Thinking"
+        model: "deepseek-v4-pro"
+
+    # Codex - 直接对话 codex CLI(无需其他驱动模型,用 ChatGPT Plus OAuth)
+    # vega-codex-proxy 服务包 codex exec 为 OpenAI 兼容 chat completion
+    - name: "codex-cli"
+      label: "Codex"
+      description: "直接对话 Codex CLI,有完整文件/systemctl/docker root 执行权限,用 ChatGPT Plus 凭证"
+      preset:
+        endpoint: "Codex"
+        model: "codex-cli"
+
+# =========================================================
+# Balance - token 配额 + 自动续费
+# 用户初始 100w token,每月自动续 100w
+# admin 可在管理面板 Configuration 调整
+# =========================================================
+balance:
+  enabled: true
+  startBalance: 1000000
+  autoRefillEnabled: true
+  refillIntervalValue: 30
+  refillIntervalUnit: "days"
+  refillAmount: 1000000
+
+# 注册与登录
+registration:
+  socialLogins: []
+  # admin 手动建账号即可，禁止任何外部 social
+
+# 文件上传限制
+fileConfig:
+  endpoints:
+    default:
+      fileLimit: 5
+      fileSizeLimit: 20
+      totalSizeLimit: 100
+
+# =========================================================
+# Endpoints / Providers
+# =========================================================
+endpoints:
+  agents:
+    recursionLimit: 25
+    maxRecursionLimit: 50
+    allowedProviders: ['openAI', 'anthropic', 'custom']
+    capabilities: ['execute_code', 'file_search', 'actions', 'tools', 'artifacts', 'web_search']
+  custom:
+    # ---- DeepSeek-Flash (强制关 thinking) ----
+    # DeepSeek 服务端 thinking 默认 enabled, 不传参数也会思考
+    # 必须 addParams 显式传 {"type":"disabled"} 才能关
+    - name: 'DeepSeek-Flash'
+      apiKey: '${DEEPSEEK_API_KEY}'
+      baseURL: 'https://api.deepseek.com'
+      models:
+        default: ['deepseek-v4-flash']
+        fetch: false
+      titleConvo: true
+      titleModel: 'deepseek-v4-flash'
+      modelDisplayLabel: 'DeepSeek'
+      iconURL: 'https://www.deepseek.com/favicon.ico'
+      addParams:
+        thinking:
+          type: 'disabled'
+
+    # ---- DeepSeek-Pro-Thinking (强制开 thinking + max 强度) ----
+    - name: 'DeepSeek-Pro-Thinking'
+      apiKey: '${DEEPSEEK_API_KEY}'
+      baseURL: 'https://api.deepseek.com'
+      models:
+        default: ['deepseek-v4-pro']
+        fetch: false
+      titleConvo: true
+      titleModel: 'deepseek-v4-pro'
+      modelDisplayLabel: 'DeepSeek'
+      iconURL: 'https://www.deepseek.com/favicon.ico'
+      addParams:
+        thinking:
+          type: 'enabled'
+        reasoning_effort: 'max'
+
+    # 后续要加更多 provider，复制上面块改 name/baseURL/apiKey 即可
+
+    # ---- Codex CLI 本地包装 (vega-codex-proxy) ----
+    # 通过自建 FastAPI 把 `codex exec` 包成 OpenAI 兼容 chat completion
+    # 跑在宿主机 :3084,LibreChat 容器走 host.docker.internal 访问
+    - name: 'Codex'
+      apiKey: 'no-key-needed'  # vega-codex-proxy 内部用 /root/.codex/auth.json OAuth
+      baseURL: 'http://host.docker.internal:3084/v1'
+      models:
+        default: ['codex-cli']
+        fetch: false
+      titleConvo: false
+      modelDisplayLabel: 'Codex'
+      iconURL: 'https://openai.com/favicon.ico'
+      # 转发 LibreChat 当前用户身份给 proxy,proxy 据此验 ADMIN 权限
+      headers:
+        X-LibreChat-User-Id: "{{LIBRECHAT_USER_ID}}"
+        X-LibreChat-User-Email: "{{LIBRECHAT_USER_EMAIL}}"
+        X-LibreChat-User-Role: "{{LIBRECHAT_USER_ROLE}}"
+
+# MCP servers 已废弃(原 codex MCP 模式跟用户初衷不符 - 用户要直对话 codex 而非把它当工具)
+# 现在 codex 作为独立 chat endpoint 接入(见上方 endpoints.custom 之 Codex)
+# mcpServers: {}

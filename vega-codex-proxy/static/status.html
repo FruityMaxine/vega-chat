@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <title>Codex 状态 · vega-codex-proxy</title>
+  <link rel="stylesheet" href="/codex/static/codex-panel.css" />
+</head>
+<body>
+  <div id="codex-root"></div>
+  <script src="/codex/static/codex-panel.js"></script>
+  <script>
+    CodexPanel.mount(document.getElementById("codex-root"), {
+      endpoint: "/healthz",
+      intervalMs: 5000,
+    });
+  </script>
+</body>
+</html>

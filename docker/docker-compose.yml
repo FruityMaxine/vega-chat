@@ -1,0 +1,132 @@
+name: vega-chat
+
+services:
+  api:
+    image: ghcr.io/danny-avila/librechat-dev:latest
+    container_name: vega-chat-api
+    restart: unless-stopped
+    user: "0:0"
+    # 启动时把 vega-admin inject.js 注入到 dist/index.html (幂等)
+    entrypoint: ["/bin/sh", "-c", "if ! grep -q 'vega-admin-inject' /app/client/dist/index.html 2>/dev/null; then sed -i 's|</body>|<script src=\"/vega-admin/inject.js\" id=\"vega-admin-inject\" defer></script></body>|' /app/client/dist/index.html; fi; exec docker-entrypoint.sh npm run backend"]
+    ports:
+      - "127.0.0.1:3080:3080"
+    depends_on:
+      - mongodb
+      - meilisearch
+      - rag_api
+    env_file:
+      - .env
+    environment:
+      - HOST=0.0.0.0
+      - MONGO_URI=mongodb://mongodb:27017/LibreChat
+      - MEILI_HOST=http://meilisearch:7700
+      - RAG_API_URL=http://rag_api:8000
+      - CONFIG_PATH=/app/librechat.yaml
+    volumes:
+      - ../configs/librechat.yaml:/app/librechat.yaml:ro
+      - ../mcp:/app/mcp:ro
+      - ./data/images:/app/client/public/images
+      - ./data/uploads:/app/uploads
+      - ./data/logs:/app/api/logs
+      # Codex CLI 直挂进容器（静态 ELF 无依赖）
+      - /root/.codex/packages/standalone/current/codex:/usr/local/bin/codex:ro
+      - /root/.codex/packages/standalone/current/codex-resources:/root/.codex/packages/standalone/current/codex-resources:ro
+      # Codex 凭证 + 配置 + state（rw，因为 codex 会写 logs/state）
+      - /root/.codex:/root/.codex
+      # Docker socket 让 Codex 能管 docker 容器（救援场景刚需）
+      - /var/run/docker.sock:/var/run/docker.sock
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - vega-chat-net
+
+  mongodb:
+    image: mongo:8.0.20
+    container_name: vega-chat-mongo
+    restart: unless-stopped
+    command: mongod --noauth
+    ports:
+      - "127.0.0.1:27017:27017"
+    volumes:
+      - ./data/mongo:/data/db
+    networks:
+      - vega-chat-net
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.35.1
+    container_name: vega-chat-meili
+    restart: unless-stopped
+    environment:
+      - MEILI_HOST=http://meilisearch:7700
+      - MEILI_NO_ANALYTICS=true
+      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY}
+    volumes:
+      - ./data/meili:/meili_data
+    networks:
+      - vega-chat-net
+
+  vectordb:
+    image: pgvector/pgvector:0.8.0-pg15-trixie
+    container_name: vega-chat-vectordb
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-mydatabase}
+      - POSTGRES_USER=${POSTGRES_USER:-myuser}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
+    volumes:
+      - ./data/pgdata:/var/lib/postgresql/data
+    networks:
+      - vega-chat-net
+
+  rag_api:
+    image: ghcr.io/danny-avila/librechat-rag-api-dev-lite:latest
+    container_name: vega-chat-rag
+    restart: unless-stopped
+    environment:
+      - DB_HOST=vectordb
+      - RAG_PORT=8000
+      - POSTGRES_DB=${POSTGRES_DB:-mydatabase}
+      - POSTGRES_USER=${POSTGRES_USER:-myuser}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
+    depends_on:
+      - vectordb
+    networks:
+      - vega-chat-net
+
+  # ─── Admin Panel (本地 build, 中文 + 子路径) ─────────────
+  # 镜像由 librechat-admin-panel/Dockerfile.local build 出
+  # 部署在 chat 主域 https://chat.example.com/admin-panel/
+  # 通过 VITE_BASE_PATH=/admin-panel/ build 时注入资源前缀
+  # 可选服务: 需先在 librechat-admin-panel/ fork 内 build 出 vega-chat-admin:local
+  # (该 fork 不随本仓库发布, 见 THIRD_PARTY.md)。默认 `docker compose up` 会跳过本服务;
+  # 仅当显式 `docker compose --profile admin up` 时才启用。Vega Chat 的统一 hub
+  # (inject.js + vega-admin) 已内置 codex 会话 / 系统状态管理, 本独立面板纯属可选增强。
+  admin:
+    image: vega-chat-admin:local
+    container_name: vega-chat-admin
+    restart: unless-stopped
+    profiles: ["admin"]
+    ports:
+      - "127.0.0.1:3083:3000"
+    depends_on:
+      - api
+      - mongodb
+    extra_hosts:
+      # 显式指 vega-chat-net 的 gateway,docker host-gateway 关键字在自定义 network 上指向错
+      - "host.docker.internal:172.23.0.1"
+    environment:
+      - PORT=3000
+      - SESSION_SECRET=${ADMIN_SESSION_SECRET}
+      - VITE_API_BASE_URL=https://chat.example.com
+      - VITE_BASE_PATH=/admin-panel/
+      - API_SERVER_URL=http://api:3080
+      - SESSION_COOKIE_SECURE=true
+      - ADMIN_SESSION_IDLE_TIMEOUT_MS=3600000
+      - MONGO_URI=mongodb://mongodb:27017/LibreChat
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+    networks:
+      - vega-chat-net
+
+networks:
+  vega-chat-net:
+    driver: bridge
