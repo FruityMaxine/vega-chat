@@ -217,6 +217,7 @@ def healthz():
         "app_server_initialized": srv.initialized,
         "codex_schema_warnings": codex_schema.total(),
         "codex_schema_detail": codex_schema.snapshot(),
+        "codex_health": codex_onboard.CodexDoctor.cached_overall(),
     }
 
 
@@ -318,6 +319,60 @@ async def codex_onboard_qr(request: Request, data: str):
         return JSONResponse({"ok": False, "error": f"QR 生成失败: {exc}"}, status_code=500)
     return Response(content=svg, media_type="image/svg+xml")
 
+
+
+
+# ── 组onboard TickD: codex 健康自检与故障诊断 ──
+async def _safe_archive(srv, thread_id: str) -> None:
+    try:
+        await srv.archive_thread(thread_id)
+    except Exception:  # noqa: BLE001 - 清理期尽力而为
+        pass
+
+
+@app.get("/codex/onboard/diagnose")
+async def codex_onboard_diagnose(request: Request, force: bool = False):
+    """逐项结构化诊断 codex 健康 (二进制/登录态/凭据/app-server), TTL 缓存。"""
+    await require_admin(request)
+    srv = get_app_server()
+    app_server_status = {"initialized": srv.initialized, "codex_version": srv.codex_version}
+    loop = asyncio.get_event_loop()
+    report = await loop.run_in_executor(
+        None, lambda: codex_onboard.CodexDoctor.diagnose(app_server_status, force)
+    )
+    return {"ok": True, **report.to_dict()}
+
+
+@app.post("/codex/onboard/test")
+async def codex_onboard_test(request: Request):
+    """跑一个最小 codex turn 真验证 codex 能用 (极短 prompt 省 token)。"""
+    await require_admin(request)
+    srv = get_app_server()
+    t0 = time.time()
+    try:
+        await srv.ensure_ready()
+        thread_id = await srv.start_thread()
+    except CodexAppServerError as exc:
+        return JSONResponse({"ok": False, "error": str(exc)}, status_code=503)
+    sample = ""
+    try:
+        async for ev in srv.run_turn(thread_id, "Reply with exactly: OK", idle_timeout=60):
+            if ev.kind == "agent_delta":
+                sample += ev.text
+            elif ev.kind == "error":
+                await _safe_archive(srv, thread_id)
+                return JSONResponse(
+                    {"ok": False, "error": (ev.error or {}).get("message", "codex error"),
+                     "latency_ms": int((time.time() - t0) * 1000)},
+                    status_code=502,
+                )
+            elif ev.kind == "completed":
+                break
+    except Exception as exc:  # noqa: BLE001 - turn 兜底
+        await _safe_archive(srv, thread_id)
+        return JSONResponse({"ok": False, "error": repr(exc)}, status_code=500)
+    await _safe_archive(srv, thread_id)
+    return {"ok": True, "sample": sample.strip()[:200], "latency_ms": int((time.time() - t0) * 1000)}
 
 
 

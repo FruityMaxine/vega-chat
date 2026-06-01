@@ -315,3 +315,9 @@
   }
   .vow-ready-ic { animation: vow-ready-pop 0.4s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
 }
+
+/* codex 健康卡片: 状态点颜色 (ok 绿脉冲 / warn 琥珀 / fail 红, 后两者静态) */
+.vega-dot-warn { background: #f59e0b !important; animation: none !important; }
+.vega-dot-bad { background: #dc2626 !important; animation: none !important; }
+.vega-panel-clickable { cursor: pointer; border-radius: 6px; transition: background 0.14s ease; }
+.vega-panel-clickable:hover { background: rgba(22, 163, 74, 0.06); }

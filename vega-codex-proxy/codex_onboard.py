@@ -299,3 +299,101 @@ class LoginSession:
 def current_login() -> "LoginSession | None":
     """取当前进行中的登录会话 (供 poll/cancel 端点)。"""
     return LoginSession._current
+
+
+# ════════ 组onboard TickD: codex 健康自检与故障诊断 ════════
+# 逐项结构化诊断 (二进制 / 登录态 / 凭据 / app-server 握手), 每项 status + 修复建议,
+# TTL 缓存避免每次重跑昂贵子进程检查。app-server 状态由 app.py 注入 (避免循环依赖)。
+import dataclasses
+
+
+@dataclasses.dataclass
+class CheckItem:
+    key: str
+    label: str
+    status: str  # ok / warn / fail
+    detail: str = ""
+    fix: str = ""  # 修复建议 (status != ok 时给)
+
+
+@dataclasses.dataclass
+class DiagnosticReport:
+    overall: str  # ok / warn / fail
+    items: list  # list[CheckItem]
+    checked_at: float
+
+    def to_dict(self) -> dict:
+        return {
+            "overall": self.overall,
+            "items": [dataclasses.asdict(i) for i in self.items],
+            "checked_at": self.checked_at,
+        }
+
+
+class CodexDoctor:
+    """codex 健康自检: 逐项诊断 + TTL 缓存 (默认 30s)。"""
+
+    _cache: "DiagnosticReport | None" = None
+    _cache_at: float = 0.0
+    _ttl: float = 30.0
+    _lock = threading.Lock()
+
+    @classmethod
+    def diagnose(cls, app_server: dict | None = None, force: bool = False) -> DiagnosticReport:
+        """逐项诊断。app_server: {'initialized':bool,'codex_version':str|None} 由调用方注入。"""
+        with cls._lock:
+            now = time.time()
+            if not force and cls._cache is not None and (now - cls._cache_at) < cls._ttl:
+                return cls._cache
+            items = cls._run_checks(app_server)
+            statuses = [i.status for i in items]
+            overall = "fail" if "fail" in statuses else ("warn" if "warn" in statuses else "ok")
+            report = DiagnosticReport(overall=overall, items=items, checked_at=now)
+            cls._cache = report
+            cls._cache_at = now
+            return report
+
+    @classmethod
+    def cached_overall(cls) -> str:
+        """取缓存的总体状态摘要 (供 healthz 快查, 不触发新诊断)。"""
+        return cls._cache.overall if cls._cache is not None else "unknown"
+
+    @classmethod
+    def _run_checks(cls, app_server: dict | None) -> list:
+        items: list = []
+        # 1. codex 二进制
+        det = detect_codex_bin()
+        if det.get("found"):
+            items.append(CheckItem("binary", "codex 二进制", "ok",
+                                    f"{det['path']} ({det['version']})"))
+        else:
+            items.append(CheckItem("binary", "codex 二进制", "fail",
+                                   "未找到 codex 可执行文件",
+                                   "安装 codex, 或在接入向导里填自定义路径"))
+            return items  # 二进制都没有, 后续检查无意义
+        # 2. 登录态 (codex login status 权威)
+        login = check_login_status(det.get("path"))
+        if login.get("logged_in"):
+            items.append(CheckItem("login", "登录态", "ok",
+                                    f"已登录（{login.get('method') or '?'}）"))
+        else:
+            items.append(CheckItem("login", "登录态", "fail",
+                                   login.get("detail") or "未登录",
+                                   "用接入向导扫码登录 codex"))
+        # 3. 凭据文件
+        if login.get("auth_exists"):
+            items.append(CheckItem("auth", "凭据文件", "ok", login.get("auth_file") or ""))
+        else:
+            items.append(CheckItem("auth", "凭据文件", "warn",
+                                   "auth.json 不存在", "登录成功后会自动生成"))
+        # 4. app-server 握手 (由 app.py 注入)
+        if app_server is not None:
+            if app_server.get("initialized"):
+                ver = app_server.get("codex_version") or ""
+                items.append(CheckItem("appserver", "app-server 握手", "ok",
+                                        f"已初始化 {ver}".strip()))
+            else:
+                items.append(CheckItem("appserver", "app-server 握手", "warn",
+                                       "未初始化（首次调用时懒启动）",
+                                       "在聊天里发一条消息触发初始化"))
+        return items

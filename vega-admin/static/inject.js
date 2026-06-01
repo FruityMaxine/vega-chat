@@ -280,6 +280,30 @@
         s.className = "vega-panel-v vega-bad";
       }
     });
+    refreshHealth(false);
+  }
+
+  var HEALTH_LABEL = { ok: "正常", warn: "注意", fail: "异常", unknown: "—" };
+  function refreshHealth(force) {
+    var el = document.getElementById("vp-health");
+    if (!el) return;
+    el.innerHTML = '<span class="vega-shimmer">诊断中…</span>';
+    el.className = "vega-panel-v";
+    onboardApi("diagnose" + (force ? "?force=true" : "")).then(function (d) {
+      if (!d || !d.ok) {
+        el.textContent = "不可达";
+        el.className = "vega-panel-v vega-bad";
+        return;
+      }
+      var ov = d.overall || "unknown";
+      var dot = ov === "ok" ? "ok" : ov === "warn" ? "warn" : "bad";
+      var cls = ov === "ok" ? "vega-ok" : ov === "warn" ? "vega-warn" : "vega-bad";
+      var nfail = (d.items || []).filter(function (i) { return i.status === "fail"; }).length;
+      el.innerHTML =
+        '<span class="vega-live-dot vega-dot-' + dot + '"></span>' +
+        (HEALTH_LABEL[ov] || ov) + (nfail ? "（" + nfail + " 项需处理）" : "");
+      el.className = "vega-panel-v " + cls;
+    });
   }
 
   // ── codex 会话管理器 (列表 + 重命名 + 归档) ──
@@ -533,6 +557,7 @@
       '<div class="vega-hub-sec">Codex 会话</div>' +
       '<div class="vega-panel-row"><span class="vega-panel-k">引擎</span><span class="vega-panel-v vega-shimmer" id="vp-status">加载中…</span></div>' +
       '<div class="vega-panel-row"><span class="vega-panel-k">当前会话</span><span class="vega-panel-v" id="vp-thread">—</span></div>' +
+      '<div class="vega-panel-row vega-panel-clickable" id="vp-health-row" title="点击重新诊断"><span class="vega-panel-k">codex 健康</span><span class="vega-panel-v" id="vp-health">—</span></div>' +
       '<button type="button" class="vega-panel-btn" id="vp-interrupt">停止当前回答</button>' +
       '<button type="button" class="vega-panel-btn" id="vp-sessions">管理 codex 会话</button>' +
       '<button type="button" class="vega-panel-btn vega-panel-accent" id="vp-onboard">接入 codex（向导）</button>' +
@@ -557,6 +582,10 @@
 
     panel.querySelector("#vp-onboard").addEventListener("click", function () {
       openOnboardWizard();
+    });
+
+    panel.querySelector("#vp-health-row").addEventListener("click", function () {
+      refreshHealth(true);
     });
 
     var closeArmed = false;

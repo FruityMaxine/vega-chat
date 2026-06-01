@@ -620,6 +620,21 @@ async def codex_onboard_qr(refreshToken: Optional[str] = Cookie(None), data: str
     return Response(content=content, media_type=ctype, status_code=status)
 
 
+@app.get("/api/codex/onboard/diagnose")
+async def codex_onboard_diagnose(refreshToken: Optional[str] = Cookie(None), force: bool = False):
+    user = get_current_user(refreshToken)
+    path = "/codex/onboard/diagnose" + ("?force=true" if force else "")
+    status, body = await _forward("GET", path, user)
+    return JSONResponse(body, status_code=status)
+
+
+@app.post("/api/codex/onboard/test")
+async def codex_onboard_test(refreshToken: Optional[str] = Cookie(None)):
+    user = get_current_user(refreshToken)
+    status, body = await _forward("POST", "/codex/onboard/test", user, {})
+    return JSONResponse(body, status_code=status)
+
+
 # ────── 静态资源 ──────
 # /vega-admin/        → index.html
 # /vega-admin/inject.js → 浮动按钮注入脚本（被 LibreChat 主站加载）
