@@ -41,8 +41,12 @@ $EDITOR docker/.env          # 填 MONGO/JWT/APP_TITLE/各 provider key
 | LibreChat (api) | 3080 | 聊天主站 (docker) |
 | vega-codex-proxy | 3084 | codex app-server → OpenAI 兼容 API (systemd) |
 | vega-chat-admin | 3082 | 自建 admin 后端 + inject.js (systemd) |
-| admin-panel | 3083 | 管理 GUI (可选 docker) |
+| admin-panel | 3083 | 独立管理 GUI (**可选**, 需 `librechat-admin-panel` fork, 见 THIRD_PARTY.md) |
 | MongoDB | 27017 | LibreChat 数据 |
+
+> **可选 admin-panel**：默认 `docker compose up` 不启它（`profiles: [admin]`）。Vega Chat 的统一 hub
+> （inject.js + vega-admin）已内置 codex 会话 / 系统状态管理，独立面板纯属增强。
+> 需要时 `docker compose --profile admin up -d` 并自行 build 该 fork。
 
 > **注**：`vega-codex-proxy` 监听 `0.0.0.0:3084` 是因为 LibreChat 容器需经 docker bridge
 > 网关访问宿主；UFW 须只放行 docker 子网（如 `172.23.0.0/16`），勿对公网开 3084。
